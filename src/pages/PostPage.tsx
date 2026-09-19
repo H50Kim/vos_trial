@@ -20,6 +20,7 @@ export function PostPage() {
   const [bookmarked, setBookmarked] = useState(false);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function reload() {
     const { data } = await supabase
@@ -48,8 +49,9 @@ export function PostPage() {
         .eq("post_id", postId)
         .eq("user_id", user.id)
         .maybeSingle();
-      setBookmarked(Boolean(bookmarkRow));
+        setBookmarked(Boolean(bookmarkRow));
     }
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -99,6 +101,10 @@ export function PostPage() {
     }
     setBody("");
     await reload();
+  }
+
+  if (loading) {
+    return <div className="p-10 text-center text-sm text-neutral-500">불러오는 중...</div>;
   }
 
   if (!post) {
