@@ -3,7 +3,6 @@ const state = {
   anonId: "",
   role: "",
   isAdmin: false,
-  pendingEmail: "",
   editingId: "",
   selectedId: "",
   view: "home",
@@ -32,11 +31,6 @@ const els = {
   composerHint: document.querySelector("#composer-hint"),
   submit: document.querySelector("#submit-opinion"),
   authForm: document.querySelector("#auth-form"),
-  verifyForm: document.querySelector("#verify-form"),
-  verifyHint: document.querySelector("#verify-hint"),
-  otp: document.querySelector("#otp"),
-  authResend: document.querySelector("#auth-resend"),
-  authReset: document.querySelector("#auth-reset"),
   opinionForm: document.querySelector("#opinion-form"),
   authError: document.querySelector("#auth-error"),
   formError: document.querySelector("#form-error"),
@@ -250,7 +244,7 @@ function renderComposer() {
     els.submit.textContent = "수정 저장";
   } else {
     els.composerTitle.textContent = "글쓰기";
-    els.composerHint.textContent = "@gm.com 이메일 인증 후 익명으로 게시됩니다. 이메일은 노출되지 않습니다.";
+    els.composerHint.textContent = "@gm.com 이메일로 등록한 뒤 익명으로 게시됩니다. 이메일은 노출되지 않습니다.";
     els.submit.textContent = "익명으로 게시";
   }
 }
@@ -297,7 +291,7 @@ function renderComments(item) {
         <input name="body" maxlength="1000" required placeholder="익명 댓글 남기기" />
         <button type="submit">등록</button>
       </form>`
-    : `<p class="hint">이메일 인증 후 댓글, 별점, 공감을 남길 수 있습니다.</p>`;
+    : `<p class="hint">이메일 등록 후 댓글, 별점, 공감을 남길 수 있습니다.</p>`;
   return `<div class="comments"><h3 class="subhead">댓글 ${comments.length}</h3><ul>${list}</ul>${form}</div>`;
 }
 
@@ -418,17 +412,7 @@ function applySession(data) {
   state.anonId = data.anonId || "";
   state.role = data.role || "";
   state.isAdmin = Boolean(data.isAdmin);
-  state.pendingEmail = "";
   if (state.token) localStorage.setItem("voc_token", state.token);
-}
-
-function showAuthStep(step) {
-  const verify = step === "verify";
-  if (els.authForm) els.authForm.classList.toggle("hidden", verify);
-  if (els.verifyForm) els.verifyForm.classList.toggle("hidden", !verify);
-  if (verify && els.verifyHint) {
-    els.verifyHint.textContent = `${state.pendingEmail}으로 인증 코드를 보냈습니다. 메일의 숫자 코드를 입력하거나, 인증 링크를 누르면 익명으로 입장합니다.`;
-  }
 }
 
 function clearSession() {
@@ -436,7 +420,6 @@ function clearSession() {
   state.anonId = "";
   state.role = "";
   state.isAdmin = false;
-  state.pendingEmail = "";
   state.editingId = "";
   localStorage.removeItem("voc_token");
 }
@@ -451,26 +434,7 @@ async function loadOpinions() {
 
 async function restoreSession() {
   setView("home");
-  const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
-  const accessToken = hash.get("access_token");
-  if (accessToken) {
-    history.replaceState({}, "", location.pathname + location.search);
-    try {
-      const data = await api("/api/auth/complete", {
-        method: "POST",
-        body: JSON.stringify({ accessToken }),
-      });
-      applySession(data);
-      await loadOpinions();
-      setView("home");
-      return;
-    } catch (error) {
-      showError(els.authError, error.message);
-      setView("me");
-    }
-  }
   if (!state.token) {
-    showAuthStep("email");
     renderAll();
     await loadOpinions();
     return;
@@ -483,7 +447,6 @@ async function restoreSession() {
     await loadOpinions();
   } catch {
     clearSession();
-    showAuthStep("email");
     await loadOpinions();
   }
 }
@@ -558,8 +521,6 @@ els.logout.addEventListener("click", async () => {
   state.editingCommentId = "";
   if (els.search) els.search.value = "";
   document.querySelector("#email").value = "";
-  if (els.otp) els.otp.value = "";
-  showAuthStep("email");
   fillForm(null);
   showError(els.authError, "");
   showError(els.formError, "");
@@ -568,80 +529,26 @@ els.logout.addEventListener("click", async () => {
   setView("me");
 });
 
-async function requestAuthCode(resend) {
-  const email = document.querySelector("#email").value;
-  showError(els.authError, "");
-  if (!isGmEmail(email)) {
-    throw new Error("@gm.com 이메일만 인증할 수 있습니다.");
-  }
-  const data = await api("/api/auth/request", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
-  state.pendingEmail = data.email || email.trim().toLowerCase();
-  showAuthStep("verify");
-  if (els.otp) {
-    els.otp.value = "";
-    els.otp.focus();
-  }
-  showError(els.authError, resend ? "인증 코드를 다시 보냈습니다." : data.message || "인증 코드를 보냈습니다.", true);
-}
-
 els.authForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  showError(els.authError, "");
+  const email = document.querySelector("#email").value;
   try {
-    await requestAuthCode(false);
-  } catch (error) {
-    const email = document.querySelector("#email").value.trim().toLowerCase();
-    if (error.message.includes("이미 보냈습니다") && email) {
-      state.pendingEmail = email;
-      showAuthStep("verify");
+    if (!isGmEmail(email)) {
+      throw new Error("@gm.com 이메일만 등록할 수 있습니다.");
     }
+    const data = await api("/api/auth", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+    applySession(data);
+    renderIdentity();
+    await loadOpinions();
+    setView("home");
+  } catch (error) {
     showError(els.authError, error.message);
   }
 });
-
-if (els.verifyForm) {
-  els.verifyForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    showError(els.authError, "");
-    try {
-      const data = await api("/api/auth/verify", {
-        method: "POST",
-        body: JSON.stringify({
-          email: state.pendingEmail || document.querySelector("#email").value,
-          code: els.otp?.value || "",
-        }),
-      });
-      applySession(data);
-      renderIdentity();
-      await loadOpinions();
-      setView("home");
-    } catch (error) {
-      showError(els.authError, error.message);
-    }
-  });
-}
-
-if (els.authResend) {
-  els.authResend.addEventListener("click", async () => {
-    try {
-      await requestAuthCode(true);
-    } catch (error) {
-      showError(els.authError, error.message);
-    }
-  });
-}
-
-if (els.authReset) {
-  els.authReset.addEventListener("click", () => {
-    state.pendingEmail = "";
-    if (els.otp) els.otp.value = "";
-    showAuthStep("email");
-    showError(els.authError, "");
-    document.querySelector("#email").focus();
-  });
-}
 
 els.opinionForm.addEventListener("submit", async (event) => {
   event.preventDefault();

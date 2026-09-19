@@ -66,7 +66,7 @@
 
             <section id="view-write" class="view hidden">
               <h1 id="composer-title">글쓰기</h1>
-              <p id="composer-hint" class="hint">@gm.com 이메일 인증 후 익명으로 게시됩니다. 이메일은 노출되지 않습니다.</p>
+              <p id="composer-hint" class="hint">@gm.com 이메일로 등록한 뒤 익명으로 게시됩니다. 이메일은 노출되지 않습니다.</p>
               <form id="opinion-form" class="stack">
                 <label>
                   제목 / Ask S&amp;E Anything <span class="req">필수</span>
@@ -97,7 +97,7 @@
               <div id="me-card" class="me-card hidden">
                 <p class="me-id">익명 <strong id="anon-label"></strong></p>
                 <p id="role-label" class="chip role">User</p>
-                <p class="hint">@gm.com 이메일 인증으로 고정 익명 ID가 유지됩니다. 메일 주소는 공개되지 않습니다.</p>
+                <p class="hint">@gm.com 이메일로 등록하면 고정 익명 ID가 유지됩니다. 메일 주소는 공개되지 않습니다.</p>
                 <div class="me-actions">
                   <button type="button" id="my-posts-btn" class="ghost">내 글 보기</button>
                   <button type="button" id="logout" class="ghost">로그아웃</button>
@@ -112,26 +112,14 @@
                 <div id="my-comment-list"></div>
               </section>
               <section id="gate" class="me-card">
-                <h2>이메일 인증</h2>
-                <p class="hint">@gm.com 이메일 인증 후 익명으로 참여합니다. 메일 주소는 공개되지 않습니다.</p>
+                <h2>이메일 등록</h2>
+                <p class="hint">@gm.com 이메일로 등록한 뒤 익명으로 참여합니다. 메일 주소는 공개되지 않습니다.</p>
                 <form id="auth-form" class="stack">
                   <label>
                     Email <span class="req">필수</span>
                     <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@gm.com" />
                   </label>
-                  <button type="submit">인증 코드 받기</button>
-                </form>
-                <form id="verify-form" class="stack hidden">
-                  <p id="verify-hint" class="hint"></p>
-                  <label>
-                    인증 코드 <span class="req">필수</span>
-                    <input id="otp" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required placeholder="6자리 숫자" />
-                  </label>
-                  <button type="submit">익명으로 입장</button>
-                  <div class="me-actions">
-                    <button type="button" id="auth-resend" class="ghost">코드 다시 받기</button>
-                    <button type="button" id="auth-reset" class="ghost">다른 이메일</button>
-                  </div>
+                  <button type="submit">등록하고 입장</button>
                 </form>
                 <p id="auth-error" class="error" hidden></p>
               </section>

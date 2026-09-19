@@ -296,20 +296,12 @@ label, legend { display: grid; gap: 8px; font-weight: 700; font-size: 14px; }
 .scale label { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; }
 
 #submit-opinion,
-#auth-form button[type="submit"],
-#verify-form button[type="submit"] {
+#auth-form button[type="submit"] {
   width: 100%;
   background: #111;
   color: #fff;
   border-radius: 10px;
   padding: 14px;
-  font-weight: 800;
-}
-
-#otp {
-  letter-spacing: 0.35em;
-  text-align: center;
-  font-size: 22px;
   font-weight: 800;
 }
 

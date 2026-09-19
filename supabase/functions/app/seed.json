@@ -1,0 +1,333 @@
+{
+  "users": [
+    {
+      "id": "2ad6bc02-de6a-44ec-bf6d-2f366556e245",
+      "emailHash": "683be7bb675fb694490c9fa80b9bc3f16c8415bec92dbcb7dcabb348344dff49",
+      "anonId": "VOC-B90A3180",
+      "createdAt": "2026-09-08T09:22:52.512Z"
+    },
+    {
+      "id": "eca3a690-74d3-49d7-8222-2e9df12f102b",
+      "emailHash": "e5f934299231060487f687482c9390d90e33d243fa475e19f16e871569166be2",
+      "anonId": "VOC-F7F01595",
+      "createdAt": "2026-09-08T09:22:52.561Z"
+    },
+    {
+      "id": "c3a7ee25-3b2e-4f35-b5cd-3041e92719a6",
+      "emailHash": "5cf98efa5ea7d234fbefbb7c6519d496653d0946dc43195fc64d84a8b1479c24",
+      "anonId": "VOC-AE09FE26",
+      "createdAt": "2026-09-08T09:24:38.174Z"
+    },
+    {
+      "id": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "emailHash": "fb064d769d1432515b266812cfb4cddcdcee121f7d126c6c80d52ba16790a6f2",
+      "anonId": "VOC-80048A6F",
+      "createdAt": "2026-09-08T09:49:20.628Z"
+    },
+    {
+      "id": "088e1cf2-38fa-4e37-83b5-def59a526973",
+      "emailHash": "7cb61ee0b57057eb25ec29581e48495d521fa9995de78f23681aaa3e95aca7e3",
+      "anonId": "VOC-7D28EC11",
+      "createdAt": "2026-09-08T10:09:22.904Z"
+    },
+    {
+      "id": "6d6bcc67-2e68-41d9-b4c3-41fb65dcab5c",
+      "emailHash": "a5fac5a78a553987cd14fedd25c05c0fe836e8c4ea02cf964e5f9ae56a83a38e",
+      "anonId": "VOC-59A4E910",
+      "createdAt": "2026-09-08T10:11:29.557Z"
+    },
+    {
+      "id": "897128f4-c1e6-444e-b720-51916183d082",
+      "emailHash": "c9f603598377adf2b8a960548e744e4c8e8fef094961bdceddfd342e825e1dae",
+      "anonId": "VOC-D8A88CB7",
+      "createdAt": "2026-09-08T10:11:45.663Z"
+    },
+    {
+      "id": "745a8a29-d1a1-4906-90d1-5d8e83f9c358",
+      "emailHash": "2156096bf3602df461fb582d45c188e70e60105029b4ea7fa2055561121e67e3",
+      "anonId": "VOC-9669C803",
+      "createdAt": "2026-09-08T13:30:43.806Z"
+    },
+    {
+      "id": "dd419041-0552-45cd-983c-2a6591d3282e",
+      "emailHash": "2535bcbcacf83c9b088f1362baea6154db8ec7b3d3f319acca16ac110dc36e0f",
+      "anonId": "VOC-A02B6D70",
+      "createdAt": "2026-09-08T13:30:43.834Z"
+    },
+    {
+      "id": "a65a1ad6-173e-4f9a-bc48-231dfc838d9a",
+      "emailHash": "7854be552c9ab54557076d3af701c13fe5f0d9778ad2c5a7c4f45f54d66ed3f1",
+      "anonId": "VOC-DC972730",
+      "createdAt": "2026-09-08T13:30:43.841Z"
+    },
+    {
+      "id": "850d9136-fcf4-4479-8a38-f1dd7606bcb8",
+      "emailHash": "48fc0ebcdfa883e9a65e8a48c557e7ba5904cc7306d49185f496d9b2468048bf",
+      "anonId": "VOC-FDB4C5AC",
+      "createdAt": "2026-09-08T13:41:04.695Z"
+    },
+    {
+      "id": "7996151d-ba46-4c98-999c-c1a6606d25c4",
+      "emailHash": "d810718428e1e7636436ae3ef59c4ad6a62390dc63dad6fe873a171a64230fbd",
+      "anonId": "VOC-5835C4FD",
+      "createdAt": "2026-09-08T14:07:39.309Z"
+    },
+    {
+      "id": "632c02c1-51b1-4236-ae86-9280d71a16c9",
+      "emailHash": "6de41cf2f1d9ecaac7e704f0f4170313b176fa441fb74326c1ffa8a8754a92a0",
+      "anonId": "VOC-FD0F18C4",
+      "createdAt": "2026-09-08T14:24:19.781Z"
+    },
+    {
+      "id": "013ef984-fcee-4bc3-bac0-bac4878963b1",
+      "emailHash": "1bb24a66e5527bf8f27b9431ae7c6b7c928d6c2b0d462b81781ed280090ff412",
+      "anonId": "VOC-67263C2A",
+      "createdAt": "2026-09-19T15:14:05.508Z"
+    },
+    {
+      "id": "1a3b61f3-bffa-430c-802a-5c0e04f3af58",
+      "emailHash": "3d46b6d06a1210154519c00f72ed9ea36ba9cc7e3320224975688d5811ab5214",
+      "anonId": "VOC-DCAAA422",
+      "createdAt": "2026-09-19T15:33:11.634Z"
+    },
+    {
+      "id": "df0dc85e-ff8f-49e7-80b2-55fbe79276a3",
+      "emailHash": "debd49e2e03e7b33b49deef80a54bdc7cd6a79001b854f8bc3a92514474d4251",
+      "anonId": "VOC-453759D3",
+      "createdAt": "2026-09-19T15:36:31.214Z"
+    }
+  ],
+  "opinions": [
+    {
+      "id": "2833247d-8b4f-4c44-8e73-98f02af9824e",
+      "userId": "2ad6bc02-de6a-44ec-bf6d-2f366556e245",
+      "ask": "배포 파이프라인을 단순화하면 좋겠습니다.",
+      "others": "문서화도 같이",
+      "priority": 4,
+      "createdAt": "2026-09-08T09:22:52.598Z",
+      "updatedAt": "2026-09-08T09:22:52.598Z",
+      "number": 1
+    },
+    {
+      "id": "7dbdc741-acb7-4c15-a679-e0c890ee96a3",
+      "userId": "eca3a690-74d3-49d7-8222-2e9df12f102b",
+      "ask": "온보딩 체크리스트가 필요합니다.",
+      "others": "",
+      "priority": 3,
+      "createdAt": "2026-09-08T09:22:52.695Z",
+      "updatedAt": "2026-09-08T09:22:52.695Z",
+      "number": 2
+    },
+    {
+      "id": "8f720352-9586-4e9c-b8db-dd640f157c59",
+      "userId": "c3a7ee25-3b2e-4f35-b5cd-3041e92719a6",
+      "ask": "테스트 환경 접근 권한이 더 빨리 부여되면 좋겠습니다.",
+      "others": "주말 온콜 가이드도 필요합니다.",
+      "priority": 5,
+      "createdAt": "2026-09-08T09:26:29.511Z",
+      "updatedAt": "2026-09-08T09:26:29.511Z",
+      "number": 3
+    },
+    {
+      "id": "49a4b3ea-9810-4dfd-bf3b-c485847b7a38",
+      "userId": "088e1cf2-38fa-4e37-83b5-def59a526973",
+      "ask": "Google Form 연동 확인용 의견입니다.",
+      "others": "서버에서 formResponse로 전송",
+      "priority": 4,
+      "createdAt": "2026-09-08T10:09:22.940Z",
+      "updatedAt": "2026-09-08T10:09:22.940Z",
+      "number": 5
+    },
+    {
+      "id": "2af28549-9c84-4cef-b1c8-d4200b20069f",
+      "userId": "6d6bcc67-2e68-41d9-b4c3-41fb65dcab5c",
+      "ask": "Google Form 저장 연동 테스트",
+      "others": "Email + Ask + Others + Priority",
+      "priority": 5,
+      "createdAt": "2026-09-08T10:11:29.584Z",
+      "updatedAt": "2026-09-08T10:11:29.584Z",
+      "number": 6
+    },
+    {
+      "id": "2f97a8bd-3f12-4bbd-82a5-319dcd915fd7",
+      "userId": "897128f4-c1e6-444e-b720-51916183d082",
+      "ask": "새 서버에서 폼 저장 확인",
+      "others": "sync check",
+      "priority": 1,
+      "createdAt": "2026-09-08T10:11:46.555Z",
+      "updatedAt": "2026-09-08T10:11:46.555Z",
+      "number": 7
+    },
+    {
+      "id": "baf6db1a-292f-4e71-bf49-8292e06f8541",
+      "userId": "dd419041-0552-45cd-983c-2a6591d3282e",
+      "ask": "Admin edited user post",
+      "others": "ok",
+      "priority": 4,
+      "source": "app",
+      "formKey": "app:dd419041-0552-45cd-983c-2a6591d3282e:baf6db1a-292f-4e71-bf49-8292e06f8541",
+      "createdAt": "2026-09-08T13:30:44.768Z",
+      "updatedAt": "2026-09-08T13:30:46.205Z",
+      "number": 8
+    },
+    {
+      "id": "f1a420d7-ce6a-4f34-8556-986913b197a8",
+      "number": 9,
+      "userId": "013ef984-fcee-4bc3-bac0-bac4878963b1",
+      "ask": "웹 반영 확인용 게시글입니다.",
+      "others": "tracker 첨부 파일 전체를 localhost 웹에 반영했습니다.",
+      "priority": 2,
+      "source": "app",
+      "formKey": "app:013ef984-fcee-4bc3-bac0-bac4878963b1:f1a420d7-ce6a-4f34-8556-986913b197a8",
+      "createdAt": "2026-09-19T15:14:54.040Z",
+      "updatedAt": "2026-09-19T15:14:54.040Z"
+    },
+    {
+      "id": "79e2a143-a51b-41ff-a52f-7bed4e179e3f",
+      "number": 11,
+      "userId": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "ask": "동료에게 글쓰기",
+      "others": "추가 내용 예제",
+      "priority": 2,
+      "source": "app",
+      "formKey": "app:1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f:79e2a143-a51b-41ff-a52f-7bed4e179e3f",
+      "createdAt": "2026-09-19T15:24:14.593Z",
+      "updatedAt": "2026-09-19T15:27:26.057Z"
+    },
+    {
+      "id": "eb55824b-f490-46ab-a716-8b2406927755",
+      "number": 15,
+      "userId": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "ask": "aa",
+      "others": "bb",
+      "priority": 1,
+      "source": "google",
+      "formKey": "google:fb064d769d1432515b266812cfb4cddcdcee121f7d126c6c80d52ba16790a6f2",
+      "createdAt": "2026-09-08T19:13:00+09:00",
+      "updatedAt": "2026-09-19T15:36:55.581Z"
+    }
+  ],
+  "votes": [
+    {
+      "id": "48037534-6454-421c-a218-646caaab624d",
+      "userId": "eca3a690-74d3-49d7-8222-2e9df12f102b",
+      "opinionId": "2833247d-8b4f-4c44-8e73-98f02af9824e",
+      "createdAt": "2026-09-08T09:22:52.673Z"
+    },
+    {
+      "id": "70f672a4-26c1-4753-8760-9d2aa9bbf44a",
+      "userId": "c3a7ee25-3b2e-4f35-b5cd-3041e92719a6",
+      "opinionId": "2833247d-8b4f-4c44-8e73-98f02af9824e",
+      "createdAt": "2026-09-08T09:27:15.315Z"
+    },
+    {
+      "id": "a599bb70-be41-45bc-ad9a-d5b4b5c15241",
+      "userId": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "opinionId": "2833247d-8b4f-4c44-8e73-98f02af9824e",
+      "createdAt": "2026-09-08T09:49:40.720Z"
+    },
+    {
+      "id": "b673f6e2-26e9-426f-8b20-7429af7ff32c",
+      "userId": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "opinionId": "2f97a8bd-3f12-4bbd-82a5-319dcd915fd7",
+      "createdAt": "2026-09-08T10:13:33.972Z"
+    },
+    {
+      "id": "86cdc531-5c88-4aff-880a-319a96f48cd5",
+      "userId": "013ef984-fcee-4bc3-bac0-bac4878963b1",
+      "opinionId": "2f97a8bd-3f12-4bbd-82a5-319dcd915fd7",
+      "createdAt": "2026-09-19T15:15:56.562Z"
+    },
+    {
+      "id": "144b2122-74a4-4b17-97ee-6b77aab75e77",
+      "userId": "013ef984-fcee-4bc3-bac0-bac4878963b1",
+      "opinionId": "2833247d-8b4f-4c44-8e73-98f02af9824e",
+      "createdAt": "2026-09-19T15:18:12.926Z"
+    },
+    {
+      "id": "02e943bc-4489-4e7d-a48a-c957e8a1577c",
+      "userId": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "opinionId": "baf6db1a-292f-4e71-bf49-8292e06f8541",
+      "createdAt": "2026-09-19T15:23:39.383Z"
+    },
+    {
+      "id": "75050f49-af30-46a2-b45c-15138d80bfd0",
+      "userId": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "opinionId": "8f720352-9586-4e9c-b8db-dd640f157c59",
+      "createdAt": "2026-09-19T15:23:46.356Z"
+    },
+    {
+      "id": "a3756b75-8424-41d6-842b-e2c0c5cd85f7",
+      "userId": "1a3b61f3-bffa-430c-802a-5c0e04f3af58",
+      "opinionId": "8f720352-9586-4e9c-b8db-dd640f157c59",
+      "createdAt": "2026-09-19T15:33:11.685Z"
+    }
+  ],
+  "comments": [
+    {
+      "id": "7d60445b-0b43-4c06-b199-57dfc355c193",
+      "opinionId": "2833247d-8b4f-4c44-8e73-98f02af9824e",
+      "userId": "850d9136-fcf4-4479-8a38-f1dd7606bcb8",
+      "body": "별점과 댓글 검증입니다.",
+      "createdAt": "2026-09-08T13:41:36.138Z"
+    },
+    {
+      "id": "a2fa8d03-6c17-4220-8e65-35f13191cd1d",
+      "opinionId": "8f720352-9586-4e9c-b8db-dd640f157c59",
+      "userId": "1a3b61f3-bffa-430c-802a-5c0e04f3af58",
+      "body": "권한 확인용 댓글입니다.",
+      "createdAt": "2026-09-19T15:33:11.679Z"
+    }
+  ],
+  "ratings": [
+    {
+      "id": "3429f15b-6005-475b-a2dc-4f61ac017ce2",
+      "userId": "850d9136-fcf4-4479-8a38-f1dd7606bcb8",
+      "opinionId": "2833247d-8b4f-4c44-8e73-98f02af9824e",
+      "stars": 5,
+      "createdAt": "2026-09-08T13:41:36.132Z",
+      "updatedAt": "2026-09-08T13:41:36.132Z"
+    },
+    {
+      "id": "e3c8bc42-cd20-4130-9a32-96946831f113",
+      "userId": "850d9136-fcf4-4479-8a38-f1dd7606bcb8",
+      "opinionId": "7dbdc741-acb7-4c15-a679-e0c890ee96a3",
+      "stars": 4,
+      "createdAt": "2026-09-08T13:44:41.271Z",
+      "updatedAt": "2026-09-08T13:44:41.271Z"
+    },
+    {
+      "id": "23fbb433-8156-4019-b267-86f094831fc2",
+      "userId": "013ef984-fcee-4bc3-bac0-bac4878963b1",
+      "opinionId": "2f97a8bd-3f12-4bbd-82a5-319dcd915fd7",
+      "stars": 4,
+      "createdAt": "2026-09-19T15:15:54.270Z",
+      "updatedAt": "2026-09-19T15:15:55.017Z"
+    },
+    {
+      "id": "f9992a41-f4ee-4b08-bb0f-12b71b552a1d",
+      "userId": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "opinionId": "2833247d-8b4f-4c44-8e73-98f02af9824e",
+      "stars": 2,
+      "createdAt": "2026-09-19T15:23:08.901Z",
+      "updatedAt": "2026-09-19T15:28:26.005Z"
+    },
+    {
+      "id": "461c2cd0-3912-4dfb-a283-05cc5fd58be3",
+      "userId": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "opinionId": "baf6db1a-292f-4e71-bf49-8292e06f8541",
+      "stars": 5,
+      "createdAt": "2026-09-19T15:23:40.554Z",
+      "updatedAt": "2026-09-19T15:23:40.554Z"
+    },
+    {
+      "id": "bd1d4d0c-6cdc-4d3e-93c9-3967b3eb1535",
+      "userId": "1a796bdc-d6e8-47a0-96ae-a8935a0d7d4f",
+      "opinionId": "8f720352-9586-4e9c-b8db-dd640f157c59",
+      "stars": 5,
+      "createdAt": "2026-09-19T15:23:45.906Z",
+      "updatedAt": "2026-09-19T15:23:45.906Z"
+    }
+  ],
+  "nextNumber": 16
+}
