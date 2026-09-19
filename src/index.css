@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "Apple SD Gothic Neo", "Noto Sans KR", Pretendard, system-ui, sans-serif;
+  color: #111;
+  background: #fff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+a {
+  font-family: inherit;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
