@@ -11,7 +11,9 @@ const MIME: Record<string, string> = {
 };
 
 function assetPath(pathname: string) {
-  let rest = pathname.replace(/^\/functions\/v1\/app\/?/, "");
+  let rest = pathname
+    .replace(/^\/functions\/v1\/app\/?/, "")
+    .replace(/^\/app\/?/, "");
   if (!rest || rest.endsWith("/")) rest += "index.html";
   return rest.replace(/^\/+/, "");
 }
