@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createStore, type VocDb } from "./store.ts";
-import { bilingualFields, needsTranslation } from "./translate.ts";
+import { bilingualFields, bilingualText, needsCommentTranslation, needsTranslation } from "./translate.ts";
 
 const SEED_JSON = "{\"users\":[],\"opinions\":[],\"votes\":[],\"comments\":[],\"ratings\":[],\"nextNumber\":1}";
 
@@ -113,6 +113,15 @@ function sanitizeText(value: unknown, maxLength: number) {
   return String(value ?? "").replace(/\r\n/g, "\n").trim().slice(0, maxLength);
 }
 
+function sanitizeMultiline(value: unknown, maxLength: number) {
+  return String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\t/g, "  ")
+    .replace(/^\n+/, "")
+    .replace(/\s+$/, "")
+    .slice(0, maxLength);
+}
+
 function parsePriority(value: unknown) {
   const priority = Number(value);
   if (!Number.isInteger(priority) || priority < 0 || priority > 5) return null;
@@ -205,6 +214,7 @@ function publicComment(comment: Record<string, unknown>, currentUserId: string, 
     id: comment.id,
     anonId: author?.anonId ?? "VOC-UNKNOWN",
     body: comment.body,
+    bodyEn: comment.bodyEn || "",
     createdAt: comment.createdAt,
     createdAtLabel: formatDateTime(comment.createdAt),
     mine,
@@ -256,6 +266,12 @@ async function applyTranslations(opinion: Record<string, unknown> | null) {
   return (await store.saveTranslations(String(opinion.id), fields)) || { ...opinion, ...fields };
 }
 
+async function applyCommentTranslations(comment: Record<string, unknown> | null) {
+  if (!comment?.id || !needsCommentTranslation(comment)) return comment;
+  const fields = await bilingualText(comment.body, comment);
+  return (await store.saveCommentTranslations(String(comment.id), fields)) || { ...comment, ...fields };
+}
+
 let hydrateQueued = false;
 function enqueueTranslationHydration() {
   if (hydrateQueued) return;
@@ -264,6 +280,9 @@ function enqueueTranslationHydration() {
     try {
       for (const item of store.listOpinions()) {
         await applyTranslations(item as Record<string, unknown>);
+        for (const comment of store.listComments(String(item.id))) {
+          await applyCommentTranslations(comment as Record<string, unknown>);
+        }
       }
     } catch (error) {
       console.error("translation hydrate failed", error);
@@ -569,12 +588,14 @@ Deno.serve(async (req) => {
       if (!auth) return json({ error: "이메일 등록 후 입장해 주세요." }, 401);
       const opinion = store.findOpinionById(params[1]);
       if (!opinion) return json({ error: "의견을 찾을 수 없습니다." }, 404);
-      const body = sanitizeText((await readBody(req))?.body, 1000);
+      const body = sanitizeMultiline((await readBody(req))?.body, 1000);
       if (!body) return json({ error: "댓글 내용을 입력해 주세요." }, 400);
+      const translations = await bilingualText(body);
       const comment = await store.addComment({
         opinionId: String(opinion.id),
         userId: String(auth.user.id),
         body,
+        ...translations,
       });
       return json({ item: publicComment(comment, String(auth.user.id), auth.email) }, 201);
     }
@@ -612,9 +633,10 @@ Deno.serve(async (req) => {
       if (!isAdmin(auth.email) && comment.userId !== auth.user.id) {
         return json({ error: "이 댓글을 수정할 권한이 없습니다." }, 403);
       }
-      const body = sanitizeText((await readBody(req))?.body, 1000);
+      const body = sanitizeMultiline((await readBody(req))?.body, 1000);
       if (!body) return json({ error: "댓글 내용을 입력해 주세요." }, 400);
-      const updated = await store.updateComment(commentParams[1], body);
+      const translations = await bilingualText(body, comment as Record<string, unknown>);
+      const updated = await store.updateComment(commentParams[1], body, translations);
       return json({ item: publicComment(updated as Record<string, unknown>, String(auth.user.id), auth.email) });
     }
     if (commentParams && method === "DELETE") {

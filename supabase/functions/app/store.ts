@@ -227,23 +227,54 @@ export function createStore(initial: VocDb | null, persist: (db: VocDb) => Promi
     findCommentById(id: string) {
       return db.comments.find((comment) => comment.id === id) ?? null;
     },
-    async addComment({ opinionId, userId, body }: { opinionId: string; userId: string; body: string }) {
+    async addComment({
+      opinionId,
+      userId,
+      body,
+      bodyEn = "",
+      bodyTranslatedFrom = "",
+    }: {
+      opinionId: string;
+      userId: string;
+      body: string;
+      bodyEn?: string;
+      bodyTranslatedFrom?: string;
+    }) {
       const comment = {
         id: crypto.randomUUID(),
         opinionId,
         userId,
         body,
+        bodyEn,
+        bodyTranslatedFrom,
         createdAt: new Date().toISOString(),
       };
       db.comments.push(comment);
       await save();
       return comment;
     },
-    async updateComment(id: string, body: string) {
+    async updateComment(
+      id: string,
+      body: string,
+      translations: { bodyEn?: string; bodyTranslatedFrom?: string } = {},
+    ) {
       const comment = db.comments.find((item) => item.id === id);
       if (!comment) return null;
       comment.body = body;
+      if (translations.bodyEn !== undefined) comment.bodyEn = translations.bodyEn;
+      if (translations.bodyTranslatedFrom !== undefined) comment.bodyTranslatedFrom = translations.bodyTranslatedFrom;
       comment.updatedAt = new Date().toISOString();
+      await save();
+      return comment;
+    },
+    async saveCommentTranslations(
+      id: string,
+      { bodyEn, bodyTranslatedFrom }: { bodyEn?: string; bodyTranslatedFrom?: string },
+    ) {
+      const comment = db.comments.find((item) => item.id === id);
+      if (!comment) return null;
+      comment.bodyEn = bodyEn ?? "";
+      comment.bodyTranslatedFrom = bodyTranslatedFrom ?? "";
       await save();
       return comment;
     },

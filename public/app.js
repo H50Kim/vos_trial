@@ -130,14 +130,19 @@ const I18N = {
     markDone: "완료 처리",
     edit: "수정",
     delete: "삭제",
+    cancel: "취소",
     save: "저장",
     register: "등록",
     firstComment: "첫 댓글을 남겨 보세요.",
     commentPlaceholder: "익명 댓글 남기기",
     loginToEngage: "이메일 등록 후 댓글과 추천을 남길 수 있습니다.",
     commentsCount: "댓글 {n}",
-    confirmDeletePost: "{n} 글을 삭제할까요?",
+    anonymousAuthor: "익명 {id}",
+    postNumber: "고유번호 {n}",
+    confirmDeleteTitle: "글을 삭제할까요?",
+    confirmDeletePost: "고유번호 {n} 글을 삭제합니다. 삭제하면 되돌릴 수 없습니다.",
     confirmDeleteComment: "이 댓글을 삭제할까요?",
+    readMore: "자세히 보기",
     notFound: "글을 찾을 수 없습니다.",
     stars: "{n}점",
     noRating: "별점 없음",
@@ -220,14 +225,19 @@ const I18N = {
     markDone: "Mark done",
     edit: "Edit",
     delete: "Delete",
+    cancel: "Cancel",
     save: "Save",
     register: "Post",
     firstComment: "Leave the first comment.",
     commentPlaceholder: "Write an anonymous comment",
     loginToEngage: "Register your email to comment or like.",
     commentsCount: "Comments {n}",
-    confirmDeletePost: "Delete post {n}?",
+    anonymousAuthor: "Anon {id}",
+    postNumber: "No. {n}",
+    confirmDeleteTitle: "Delete this post?",
+    confirmDeletePost: "Post {n} will be deleted. This cannot be undone.",
     confirmDeleteComment: "Delete this comment?",
+    readMore: "Read more",
     notFound: "Post not found.",
     stars: "{n} stars",
     noRating: "No rating",
@@ -297,6 +307,47 @@ function showError(node, message, ok) {
   node.hidden = false;
   node.className = ok ? "ok" : "error";
   node.textContent = message;
+}
+
+let confirmLock = null;
+
+function confirmDialog({ title, body, okLabel }) {
+  const root = document.querySelector("#confirm-dialog");
+  const titleEl = document.querySelector("#confirm-title");
+  const bodyEl = document.querySelector("#confirm-body");
+  const okBtn = document.querySelector("#confirm-ok");
+  const cancelBtn = document.querySelector("#confirm-cancel");
+  if (!root || !titleEl || !bodyEl || !okBtn || !cancelBtn) {
+    return Promise.resolve(window.confirm([title, body].filter(Boolean).join("\n")));
+  }
+  if (confirmLock) return confirmLock;
+  confirmLock = new Promise((resolve) => {
+    titleEl.textContent = title;
+    bodyEl.textContent = body;
+    okBtn.textContent = okLabel || t("delete");
+    cancelBtn.textContent = t("cancel");
+    root.hidden = false;
+    root.classList.remove("hidden");
+    const finish = (value) => {
+      root.hidden = true;
+      root.classList.add("hidden");
+      document.removeEventListener("keydown", onKey);
+      root.removeEventListener("click", onClick);
+      confirmLock = null;
+      resolve(value);
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") finish(false);
+    };
+    const onClick = (event) => {
+      if (event.target.closest("#confirm-ok")) finish(true);
+      else if (event.target.closest("#confirm-cancel") || event.target.closest("[data-confirm-cancel]")) finish(false);
+    };
+    document.addEventListener("keydown", onKey);
+    root.addEventListener("click", onClick);
+    cancelBtn.focus();
+  });
+  return confirmLock;
 }
 
 const API_BASE = "https://tkjsezhhllrpnxhqmmrm.supabase.co/functions/v1/app/";
@@ -369,6 +420,20 @@ function statusChip(item) {
   return `<span class="status-chip ${status}"><span class="chip-emoji" aria-hidden="true">${emoji}</span>${escapeHtml(status === "done" ? t("done") : t("waiting"))}</span>`;
 }
 
+function postNumberOf(item) {
+  if (item?.numberLabel) return String(item.numberLabel);
+  const number = Number(item?.number);
+  if (Number.isFinite(number) && number > 0) return `#${String(Math.round(number)).padStart(3, "0")}`;
+  return String(item?.postId || "");
+}
+
+function renderPostIdentity(item) {
+  const number = postNumberOf(item);
+  const author = String(item?.anonId || "");
+  return `${number ? `<span class="post-number" title="${escapeHtml(t("postNumber", { n: number }))}">${escapeHtml(number)}</span>` : ""}
+    ${author ? `<span class="post-author">${escapeHtml(t("anonymousAuthor", { id: author }))}</span>` : ""}`;
+}
+
 function matchesStatus(item, status) {
   if (status === "all") return true;
   if (status === "notice") return isNotice(item);
@@ -430,7 +495,10 @@ function titleOf(item) {
 }
 
 function previewOf(item) {
-  return String(item.others || "").trim();
+  const src = String(item.others || "").replace(/\s+/g, " ").trim();
+  if (!src) return "";
+  if (isNotice(item) && src.length > 80) return `${src.slice(0, 80).trim()}…`;
+  return src;
 }
 
 const HANGUL_RE = /[\uac00-\ud7a3]/;
@@ -473,6 +541,19 @@ function bilingualParagraph(className, korean, english) {
     ? `<p class="${className} i18n-en"><span class="lang-tag">EN</span>${escapeHtml(en)}</p>`
     : "";
   return `<p class="${className}">${escapeHtml(src)}</p>${enBlock}`;
+}
+
+function bilingualCommentBody(korean, english) {
+  const src = String(korean || "");
+  if (!src) return "";
+  const en = englishOf(src, english);
+  if (state.lang === "en" && en) {
+    return `<p class="comment-body">${escapeHtml(en)}</p><p class="comment-body i18n-en"><span class="lang-tag">KO</span>${escapeHtml(src)}</p>`;
+  }
+  const enBlock = en
+    ? `<p class="comment-body i18n-en"><span class="lang-tag">EN</span>${escapeHtml(en)}</p>`
+    : "";
+  return `<p class="comment-body">${escapeHtml(src)}</p>${enBlock}`;
 }
 
 async function translateKoToEnClient(text) {
@@ -533,6 +614,15 @@ async function hydrateItemTranslations(items) {
       if (en) {
         item.othersEn = en;
         changed = true;
+      }
+    }
+    for (const comment of item.comments || []) {
+      if (hasKorean(comment.body) && !String(comment.bodyEn || "").trim()) {
+        const en = await translateKoToEnClient(comment.body);
+        if (en) {
+          comment.bodyEn = en;
+          changed = true;
+        }
       }
     }
     if (changed) {
@@ -647,7 +737,7 @@ function renderMyActivity() {
       ? posts
           .map(
             (item) =>
-              `<button type="button" class="me-list-item" data-open="${item.id}"><strong>${escapeHtml(titleOf(item))}</strong>${titleEnOf(item) ? `<span class="i18n-en"><span class="lang-tag">EN</span>${escapeHtml(titleEnOf(item))}</span>` : ""}<span>${escapeHtml(item.createdAtLabel || "")} · ${escapeHtml(statusLabel(item))} · ❤️ ${item.votes || 0} · 💬 ${(item.comments || []).length}${isProposal(item) ? ` · ${escapeHtml(t("priorityLabel", { n: severityOf(item) }))}` : ""}</span></button>`,
+              `<button type="button" class="me-list-item" data-open="${item.id}"><strong>${escapeHtml(titleOf(item))}</strong>${titleEnOf(item) ? `<span class="i18n-en"><span class="lang-tag">EN</span>${escapeHtml(titleEnOf(item))}</span>` : ""}<span>${escapeHtml(postNumberOf(item))} · ${escapeHtml(t("anonymousAuthor", { id: item.anonId || "" }))} · ${escapeHtml(item.createdAtLabel || "")} · ${escapeHtml(statusLabel(item))} · ❤️ ${item.votes || 0} · 💬 ${(item.comments || []).length}${isProposal(item) ? ` · ${escapeHtml(t("priorityLabel", { n: severityOf(item) }))}` : ""}</span></button>`,
           )
           .join("")
       : `<p class="hint">${t("noPosts")}</p>`;
@@ -742,11 +832,11 @@ function renderComments(item) {
             : "";
           const body =
             state.editingCommentId === comment.id
-              ? `<form class="comment-edit" data-comment-id="${comment.id}"><input name="body" maxlength="1000" required value="${escapeHtml(comment.body)}" /><button type="submit">${t("save")}</button></form>`
-              : `<p>${escapeHtml(comment.body)}</p>`;
+              ? `<form class="comment-edit" data-comment-id="${comment.id}"><textarea name="body" rows="3" maxlength="1000" required>${escapeHtml(comment.body)}</textarea><button type="submit">${t("save")}</button></form>`
+              : bilingualCommentBody(comment.body, comment.bodyEn);
           return `<li class="comment">
             <div class="comment-meta">
-              <span>${escapeHtml(comment.anonId)}</span>
+              <span class="comment-author">${escapeHtml(t("anonymousAuthor", { id: comment.anonId || "" }))}</span>
               <time>${escapeHtml(relativeTime(comment.createdAt, comment.createdAtLabel))}</time>
               ${manage}
             </div>
@@ -757,11 +847,11 @@ function renderComments(item) {
     : `<li class="hint">${t("firstComment")}</li>`;
   const form = state.anonId
     ? `<form class="comment-form" data-id="${item.id}">
-        <input name="body" maxlength="1000" required placeholder="${t("commentPlaceholder")}" />
+        <textarea name="body" rows="3" maxlength="1000" required placeholder="${t("commentPlaceholder")}"></textarea>
         <button type="submit">${t("register")}</button>
       </form>`
     : `<p class="hint">${t("loginToEngage")}</p>`;
-  return `<div class="comments"><h3 class="subhead">${t("commentsCount", { n: comments.length })}</h3><ul>${list}</ul>${form}</div>`;
+  return `<div class="comments"><h3 class="subhead">${t("commentsCount", { n: comments.length })}</h3><ul class="comment-list">${list}</ul>${form}</div>`;
 }
 
 function renderPostCard(item) {
@@ -769,10 +859,12 @@ function renderPostCard(item) {
         <div class="post-top">
           <span class="company">${item.source === "google" ? "Form" : "S&E"}</span>
           ${statusChip(item)}
+          ${renderPostIdentity(item)}
           <span>${escapeHtml(item.createdAtLabel || relativeTime(item.createdAt, ""))}</span>
         </div>
         ${bilingualHeading("h2", titleOf(item), titleEnOf(item))}
-        ${bilingualParagraph("preview", previewOf(item), item.othersEn)}
+        ${bilingualParagraph("preview", previewOf(item), isNotice(item) ? "" : item.othersEn)}
+        ${isNotice(item) ? `<p class="notice-more">${escapeHtml(t("readMore"))}</p>` : ""}
         ${renderMetrics(item)}
       </button>`;
 }
@@ -816,10 +908,12 @@ function renderDetail() {
     ? `<button type="button" class="ghost status-btn" data-id="${item.id}" data-status="${statusOf(item) === "done" ? "open" : "done"}">${statusOf(item) === "done" ? t("revertWaiting") : t("markDone")}</button>`
     : "";
   els.detail.innerHTML = `
+    <article class="detail-page">
     <div class="detail">
     <div class="post-top">
       <span class="company">${item.source === "google" ? "Form" : "S&E"}</span>
       ${statusChip(item)}
+      ${renderPostIdentity(item)}
       <span>${escapeHtml(item.createdAtLabel || "")}</span>
       ${item.updatedAt && item.updatedAt !== item.createdAt ? `<span>· ${escapeHtml(t("edited", { n: item.updatedAtLabel || "" }))}</span>` : ""}
       ${item.mine ? `<span>· ${t("myPost")}</span>` : ""}
@@ -827,13 +921,15 @@ function renderDetail() {
     ${bilingualHeading("h1", titleOf(item), titleEnOf(item))}
     ${bilingualParagraph("body", item.others, item.othersEn)}
     ${renderMetrics(item, { vote: false })}
+      <div class="actions">
       <button type="button" class="${voteClass}" data-id="${item.id}" ${voteDisabled}>❤️ ${item.votes || 0}</button>
       ${statusToggle}
       ${manage}
-    </div>
+      </div>
     ${item.voted ? `<p class="hint">${t("voteOnce")}</p>` : item.mine ? `<p class="hint">${t("voteOwn")}</p>` : ""}
-    ${renderComments(item)}
     </div>
+    ${renderComments(item)}
+    </article>
   `;
 }
 
@@ -1120,7 +1216,12 @@ function bindBoard(root) {
     const deleteButton = event.target.closest(".delete-btn");
     if (deleteButton) {
       const target = findItem(deleteButton.dataset.id);
-      if (!target || !window.confirm(t("confirmDeletePost", { n: target.numberLabel }))) return;
+      if (!target) return;
+      const ok = await confirmDialog({
+        title: t("confirmDeleteTitle"),
+        body: t("confirmDeletePost", { n: postNumberOf(target) }),
+      });
+      if (!ok) return;
       await api(`/api/opinions/${target.id}`, { method: "DELETE" });
       state.selectedId = "";
       await loadOpinions();
@@ -1173,18 +1274,31 @@ function bindBoard(root) {
     }
     const commentDel = event.target.closest(".comment-del");
     if (commentDel) {
-      if (!window.confirm(t("confirmDeleteComment"))) return;
+      const ok = await confirmDialog({
+        title: t("confirmDeleteComment"),
+        body: t("confirmDeleteComment"),
+      });
+      if (!ok) return;
       await api(`/api/comments/${commentDel.dataset.commentId}`, { method: "DELETE" });
       state.editingCommentId = "";
       await loadOpinions();
     }
   });
 
+  root.addEventListener("keydown", (event) => {
+    const area = event.target.closest(".comment-form textarea, .comment-edit textarea");
+    if (!area || event.key !== "Tab") return;
+    event.preventDefault();
+    const start = area.selectionStart ?? area.value.length;
+    const end = area.selectionEnd ?? start;
+    area.setRangeText("  ", start, end, "end");
+  });
+
   root.addEventListener("submit", async (event) => {
     const editForm = event.target.closest(".comment-edit");
     if (editForm) {
       event.preventDefault();
-      const input = editForm.querySelector("input[name='body']");
+      const input = editForm.querySelector("[name='body']");
       await api(`/api/comments/${editForm.dataset.commentId}`, {
         method: "PUT",
         body: JSON.stringify({ body: input.value }),
@@ -1196,7 +1310,7 @@ function bindBoard(root) {
     const form = event.target.closest(".comment-form");
     if (!form) return;
     event.preventDefault();
-    const input = form.querySelector("input[name='body']");
+    const input = form.querySelector("[name='body']");
     await api(`/api/opinions/${form.dataset.id}/comments`, {
       method: "POST",
       body: JSON.stringify({ body: input.value }),

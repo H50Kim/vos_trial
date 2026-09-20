@@ -123,3 +123,23 @@ export function needsTranslation(opinion) {
   if (!hasKorean(others) && opinion?.othersEn) return true;
   return false;
 }
+
+export async function bilingualText(text, existing = {}) {
+  const src = String(text || "");
+  const bodyEn = hasKorean(src)
+    ? existing.bodyTranslatedFrom === src && existing.bodyEn
+      ? String(existing.bodyEn)
+      : await translateKoToEn(src)
+    : "";
+  return {
+    bodyEn,
+    bodyTranslatedFrom: hasKorean(src) ? src : "",
+  };
+}
+
+export function needsCommentTranslation(comment) {
+  const body = String(comment?.body || "");
+  if (hasKorean(body) && comment?.bodyTranslatedFrom !== body) return true;
+  if (!hasKorean(body) && comment?.bodyEn) return true;
+  return false;
+}

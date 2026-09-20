@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { GOOGLE_FORM_EDIT_URL, submitToGoogleForm } from "./googleForm.js";
 import { createStore } from "./store.js";
-import { bilingualFields, needsTranslation } from "./translate.js";
+import { bilingualFields, bilingualText, needsCommentTranslation, needsTranslation } from "./translate.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -156,6 +156,15 @@ function sanitizeText(value, maxLength) {
     .slice(0, maxLength);
 }
 
+function sanitizeMultiline(value, maxLength) {
+  return String(value ?? "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\t/g, "  ")
+    .replace(/^\n+/, "")
+    .replace(/\s+$/, "")
+    .slice(0, maxLength);
+}
+
 function parsePriority(value) {
   const priority = Number(value);
   if (!Number.isInteger(priority) || priority < 0 || priority > 5) return null;
@@ -221,6 +230,7 @@ function publicComment(comment, currentUserId, email = "") {
     id: comment.id,
     anonId: author?.anonId ?? "VOC-UNKNOWN",
     body: comment.body,
+    bodyEn: comment.bodyEn || "",
     createdAt: comment.createdAt,
     createdAtLabel: formatDateTime(comment.createdAt),
     mine,
@@ -396,6 +406,12 @@ async function applyTranslations(opinion) {
   return (await store.saveTranslations(opinion.id, fields)) || { ...opinion, ...fields };
 }
 
+async function applyCommentTranslations(comment) {
+  if (!comment || !needsCommentTranslation(comment)) return comment;
+  const fields = await bilingualText(comment.body, comment);
+  return (await store.saveCommentTranslations(comment.id, fields)) || { ...comment, ...fields };
+}
+
 let hydrateQueued = false;
 function enqueueTranslationHydration() {
   if (hydrateQueued) return;
@@ -404,6 +420,9 @@ function enqueueTranslationHydration() {
     try {
       for (const item of store.listOpinions()) {
         await applyTranslations(item);
+        for (const comment of store.listComments(item.id)) {
+          await applyCommentTranslations(comment);
+        }
       }
     } catch (error) {
       console.error("translation hydrate failed", error);
@@ -561,15 +580,17 @@ app.post("/api/opinions/:id/comments", requireUser, async (req, res) => {
     res.status(404).json({ error: "의견을 찾을 수 없습니다." });
     return;
   }
-  const body = sanitizeText(req.body?.body, 1000);
+  const body = sanitizeMultiline(req.body?.body, 1000);
   if (!body) {
     res.status(400).json({ error: "댓글 내용을 입력해 주세요." });
     return;
   }
+  const translations = await bilingualText(body);
   const comment = await store.addComment({
     opinionId: opinion.id,
     userId: req.user.id,
     body,
+    ...translations,
   });
   res.status(201).json({ item: publicComment(comment, req.user.id, req.email) });
 });
@@ -584,12 +605,13 @@ app.put("/api/comments/:id", requireUser, async (req, res) => {
     res.status(403).json({ error: "이 댓글을 수정할 권한이 없습니다." });
     return;
   }
-  const body = sanitizeText(req.body?.body, 1000);
+  const body = sanitizeMultiline(req.body?.body, 1000);
   if (!body) {
     res.status(400).json({ error: "댓글 내용을 입력해 주세요." });
     return;
   }
-  const updated = await store.updateComment(comment.id, body);
+  const translations = await bilingualText(body, comment);
+  const updated = await store.updateComment(comment.id, body, translations);
   res.json({ item: publicComment(updated, req.user.id, req.email) });
 });
 

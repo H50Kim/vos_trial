@@ -127,3 +127,23 @@ export function needsTranslation(opinion: Record<string, unknown> | null | undef
   if (!hasKorean(others) && opinion?.othersEn) return true;
   return false;
 }
+
+export async function bilingualText(text: unknown, existing: Record<string, unknown> = {}) {
+  const src = String(text || "");
+  const bodyEn = hasKorean(src)
+    ? existing.bodyTranslatedFrom === src && existing.bodyEn
+      ? String(existing.bodyEn)
+      : await translateKoToEn(src)
+    : "";
+  return {
+    bodyEn,
+    bodyTranslatedFrom: hasKorean(src) ? src : "",
+  };
+}
+
+export function needsCommentTranslation(comment: Record<string, unknown> | null | undefined) {
+  const body = String(comment?.body || "");
+  if (hasKorean(body) && comment?.bodyTranslatedFrom !== body) return true;
+  if (!hasKorean(body) && comment?.bodyEn) return true;
+  return false;
+}

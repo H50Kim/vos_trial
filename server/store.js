@@ -242,23 +242,35 @@ export function createStore(filePath) {
     findCommentById(id) {
       return db.comments.find((comment) => comment.id === id) ?? null;
     },
-    async addComment({ opinionId, userId, body }) {
+    async addComment({ opinionId, userId, body, bodyEn = "", bodyTranslatedFrom = "" }) {
       const comment = {
         id: randomUUID(),
         opinionId,
         userId,
         body,
+        bodyEn,
+        bodyTranslatedFrom,
         createdAt: new Date().toISOString(),
       };
       db.comments.push(comment);
       await persist();
       return comment;
     },
-    async updateComment(id, body) {
+    async updateComment(id, body, translations = {}) {
       const comment = db.comments.find((item) => item.id === id);
       if (!comment) return null;
       comment.body = body;
+      if (translations.bodyEn !== undefined) comment.bodyEn = translations.bodyEn;
+      if (translations.bodyTranslatedFrom !== undefined) comment.bodyTranslatedFrom = translations.bodyTranslatedFrom;
       comment.updatedAt = new Date().toISOString();
+      await persist();
+      return comment;
+    },
+    async saveCommentTranslations(id, { bodyEn, bodyTranslatedFrom }) {
+      const comment = db.comments.find((item) => item.id === id);
+      if (!comment) return null;
+      comment.bodyEn = bodyEn ?? "";
+      comment.bodyTranslatedFrom = bodyTranslatedFrom ?? "";
       await persist();
       return comment;
     },

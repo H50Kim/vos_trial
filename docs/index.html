@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#111111" />
     <title>UnBlind - S&amp;E Voice to Value</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css?v=20260920e" />
+    <link rel="stylesheet" href="styles.css?v=20260920g" />
   </head>
   <body>
     <div class="shell">
@@ -156,6 +156,17 @@
         </div>
       </div>
     </div>
-    <script src="app.js?v=20260920e" type="module"></script>
+    <div id="confirm-dialog" class="dialog-root hidden" hidden>
+      <div class="dialog-backdrop" data-confirm-cancel></div>
+      <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+        <h2 id="confirm-title" class="dialog-title"></h2>
+        <p id="confirm-body" class="dialog-body"></p>
+        <div class="dialog-actions">
+          <button type="button" class="ghost" id="confirm-cancel">취소</button>
+          <button type="button" class="danger" id="confirm-ok">삭제</button>
+        </div>
+      </div>
+    </div>
+    <script src="app.js?v=20260920g" type="module"></script>
   </body>
 </html>
