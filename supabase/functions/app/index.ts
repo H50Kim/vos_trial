@@ -3,16 +3,10 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createStore, type VocDb } from "./store.ts";
 import { bilingualFields, needsTranslation } from "./translate.ts";
-import INDEX_HTML from "./www/index.html.ts";
-import APP_JS from "./www/app.js.ts";
-import STYLES_CSS from "./www/styles.css.ts";
-import SEED_JSON from "./seed.ts";
 
-const STATIC_FILES: Record<string, string> = {
-  "index.html": INDEX_HTML,
-  "app.js": APP_JS,
-  "styles.css": STYLES_CSS,
-};
+const SEED_JSON = "{\"users\":[],\"opinions\":[],\"votes\":[],\"comments\":[],\"ratings\":[],\"nextNumber\":1}";
+
+const PAGES_ORIGIN = "https://h50kim.github.io/vos_trial/";
 
 const ADMIN_EMAILS = new Set([
   "junhui.park@gm.com",
@@ -380,11 +374,11 @@ function appPath(pathname: string) {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
-function staticFile(name: string) {
+async function staticFile(name: string) {
   const ext = name.split(".").pop() ?? "html";
-  const file = STATIC_FILES[name];
-  if (!file) return json({ error: "파일을 찾을 수 없습니다." }, 404);
-  return new Response(file, {
+  const res = await fetch(new URL(name, PAGES_ORIGIN));
+  if (!res.ok) return json({ error: "파일을 찾을 수 없습니다." }, 404);
+  return new Response(await res.text(), {
     headers: {
       "Content-Type": MIME[ext] ?? "text/plain; charset=utf-8",
       "Cache-Control": ext === "html" ? "no-cache" : "public, max-age=60",
