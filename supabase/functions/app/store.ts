@@ -99,6 +99,12 @@ export function createStore(initial: VocDb | null, persist: (db: VocDb) => Promi
       priority,
       source = "app",
       formKey = "",
+      status = "open",
+      kind = "proposal",
+      askEn = "",
+      othersEn = "",
+      askTranslatedFrom = "",
+      othersTranslatedFrom = "",
     }: {
       userId: string;
       ask: string;
@@ -106,15 +112,28 @@ export function createStore(initial: VocDb | null, persist: (db: VocDb) => Promi
       priority: number;
       source?: string;
       formKey?: string;
+      status?: string;
+      kind?: string;
+      askEn?: string;
+      othersEn?: string;
+      askTranslatedFrom?: string;
+      othersTranslatedFrom?: string;
     }) {
       const id = crypto.randomUUID();
+      const nextKind = kind === "share" ? "share" : "proposal";
       const opinion = {
         id,
         number: takeNumber(),
         userId,
         ask,
         others,
+        askEn,
+        othersEn,
+        askTranslatedFrom,
+        othersTranslatedFrom,
         priority,
+        kind: nextKind,
+        status: nextKind === "share" ? "none" : status === "done" ? "done" : "open",
         source,
         formKey: formKey || `app:${userId}:${id}`,
         createdAt: new Date().toISOString(),
@@ -124,13 +143,69 @@ export function createStore(initial: VocDb | null, persist: (db: VocDb) => Promi
       await save();
       return opinion;
     },
-    async updateOpinion(id: string, { ask, others, priority }: { ask: string; others: string; priority: number }) {
+    async updateOpinion(
+      id: string,
+      {
+        ask,
+        others,
+        priority,
+        status,
+        kind,
+        askEn,
+        othersEn,
+        askTranslatedFrom,
+        othersTranslatedFrom,
+      }: {
+        ask: string;
+        others: string;
+        priority: number;
+        status?: string;
+        kind?: string;
+        askEn?: string;
+        othersEn?: string;
+        askTranslatedFrom?: string;
+        othersTranslatedFrom?: string;
+      },
+    ) {
       const opinion = db.opinions.find((item) => item.id === id);
       if (!opinion) return null;
       opinion.ask = ask;
       opinion.others = others;
       opinion.priority = priority;
+      if (kind === "share" || kind === "proposal") opinion.kind = kind;
+      if (opinion.kind === "share") {
+        opinion.status = "none";
+      } else if (status === "open" || status === "done") {
+        opinion.status = status;
+      }
+      if (askEn !== undefined) opinion.askEn = askEn;
+      if (othersEn !== undefined) opinion.othersEn = othersEn;
+      if (askTranslatedFrom !== undefined) opinion.askTranslatedFrom = askTranslatedFrom;
+      if (othersTranslatedFrom !== undefined) opinion.othersTranslatedFrom = othersTranslatedFrom;
       opinion.updatedAt = new Date().toISOString();
+      await save();
+      return opinion;
+    },
+    async saveTranslations(
+      id: string,
+      {
+        askEn,
+        othersEn,
+        askTranslatedFrom,
+        othersTranslatedFrom,
+      }: {
+        askEn?: string;
+        othersEn?: string;
+        askTranslatedFrom?: string;
+        othersTranslatedFrom?: string;
+      },
+    ) {
+      const opinion = db.opinions.find((item) => item.id === id);
+      if (!opinion) return null;
+      opinion.askEn = askEn ?? "";
+      opinion.othersEn = othersEn ?? "";
+      opinion.askTranslatedFrom = askTranslatedFrom ?? "";
+      opinion.othersTranslatedFrom = othersTranslatedFrom ?? "";
       await save();
       return opinion;
     },

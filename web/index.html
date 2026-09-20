@@ -6,55 +6,56 @@
     <meta name="theme-color" content="#111111" />
     <title>UnBlind - S&amp;E Voice to Value</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260920b" />
   </head>
   <body>
     <div class="shell">
       <header class="app-header">
-        <button type="button" id="back-btn" class="icon-btn hidden" aria-label="뒤로">‹</button>
+        <button type="button" id="back-btn" class="icon-btn hidden" data-i18n-aria="back" aria-label="뒤로">‹</button>
         <div class="brand">
           <strong>UnBlind</strong>
           <span>S&amp;E Voice to Value</span>
         </div>
-        <nav class="header-nav" aria-label="주요 메뉴">
-          <button type="button" class="nav-btn active" data-view="home">홈</button>
-          <button type="button" class="nav-btn write" data-view="write">글쓰기</button>
-          <button type="button" class="nav-btn" data-view="me">내 정보</button>
+        <nav class="header-nav" data-i18n-aria="mainMenu" aria-label="주요 메뉴">
+          <button type="button" class="nav-btn active" data-view="home" data-i18n="home">홈</button>
+          <button type="button" class="nav-btn write" data-view="write" data-i18n="write">글쓰기</button>
+          <button type="button" class="nav-btn" data-view="me" data-i18n="me">내 정보</button>
         </nav>
-        <button type="button" id="header-write" class="write-chip">글쓰기</button>
+        <button type="button" id="lang-toggle" class="lang-toggle" aria-label="Switch to English">EN</button>
+        <button type="button" id="header-write" class="write-chip" data-i18n="write">글쓰기</button>
       </header>
 
       <div class="layout">
-        <nav class="bottom-nav" aria-label="모바일 메뉴">
-          <button type="button" class="nav-btn active" data-view="home">홈</button>
-          <button type="button" class="nav-btn write" data-view="write">글쓰기</button>
-          <button type="button" class="nav-btn" data-view="me">내 정보</button>
+        <nav class="bottom-nav" data-i18n-aria="mobileMenu" aria-label="모바일 메뉴">
+          <button type="button" class="nav-btn active" data-view="home">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/></svg>
+            <span data-i18n="home">홈</span>
+          </button>
+          <button type="button" class="nav-btn write" data-view="write">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h14v2H5zm1.5-3.2L15.8 6.5l1.7 1.7-9.3 9.3H6.5zM17.9 4.1l1.7 1.7-1.4 1.4-1.7-1.7z"/></svg>
+            <span data-i18n="write">글쓰기</span>
+          </button>
+          <button type="button" class="nav-btn" data-view="me">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/></svg>
+            <span data-i18n="me">내 정보</span>
+          </button>
         </nav>
 
         <div class="content">
-          <nav class="topic-tabs" id="topic-tabs">
-            <button type="button" class="tab active" data-sort="hot">인기</button>
-            <button type="button" class="tab" data-sort="new">최신</button>
-            <button type="button" class="tab" data-sort="all">전체</button>
-            <button type="button" class="tab" data-mode="topic">토픽</button>
-          </nav>
-          <div id="topic-bar" class="topic-bar hidden">
-            <button type="button" class="chip-tab active" data-topic="all">전체</button>
-            <button type="button" class="chip-tab" data-topic="0">Low</button>
-            <button type="button" class="chip-tab" data-topic="1">낮음</button>
-            <button type="button" class="chip-tab" data-topic="2">보통</button>
-            <button type="button" class="chip-tab" data-topic="3">높음</button>
-            <button type="button" class="chip-tab" data-topic="4">매우 높음</button>
-            <button type="button" class="chip-tab" data-topic="5">Super</button>
-            <button type="button" class="chip-tab" data-topic="form">Form</button>
-            <button type="button" class="chip-tab" data-topic="app">S&amp;E</button>
-            <button type="button" class="chip-tab" data-topic="mine">내 글</button>
-          </div>
-
           <main class="stage">
             <section id="view-home" class="view">
+              <h1 class="page-title" data-i18n="home">홈</h1>
+              <nav class="status-tabs" id="status-tabs" data-i18n-aria="status" aria-label="진행 상태">
+                <button type="button" class="status-tab" data-status="all" data-i18n="all">전체</button>
+                <button type="button" class="status-tab active" data-status="open" data-i18n="waiting">대기</button>
+                <button type="button" class="status-tab" data-status="done" data-i18n="done">완료</button>
+              </nav>
+              <nav class="sort-tabs" id="sort-tabs" data-i18n-aria="sort" aria-label="정렬">
+                <button type="button" class="sort-tab" data-sort="hot" data-i18n="hot">인기</button>
+                <button type="button" class="sort-tab active" data-sort="new" data-i18n="latest">최신</button>
+              </nav>
               <label class="search-wrap">
-                <input id="search" type="search" placeholder="글, 익명 ID, 고유번호 검색" />
+                <input id="search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="글, 익명 ID, 고유번호 검색" />
               </label>
               <p id="board-meta" class="feed-count"></p>
               <div id="feed" class="feed"></div>
@@ -67,59 +68,62 @@
             <section id="view-write" class="view hidden">
               <h1 id="composer-title">글쓰기</h1>
               <p id="composer-hint" class="hint">@gm.com 이메일로 등록한 뒤 익명으로 게시됩니다. 이메일은 노출되지 않습니다.</p>
+              <nav class="kind-tabs" id="kind-tabs" data-i18n-aria="postKind" aria-label="글 종류">
+                <button type="button" class="kind-tab active" data-kind="proposal" data-i18n="propose">제안하기</button>
+                <button type="button" class="kind-tab" data-kind="share" data-i18n="share">공유하기</button>
+              </nav>
               <form id="opinion-form" class="stack">
                 <label>
-                  제목 / Ask S&amp;E Anything <span class="req">필수</span>
-                  <textarea id="ask" name="ask" rows="6" maxlength="4000" required placeholder="동료들에게 전하고 싶은 의견을 적어 주세요."></textarea>
+                  <span data-i18n="title">제목</span> <span class="req" data-i18n="required">필수</span>
+                  <textarea id="ask" name="ask" rows="3" maxlength="4000" required data-i18n-placeholder="titlePlaceholder" placeholder="동료들에게 전하고 싶은 의견을 적어 주세요."></textarea>
                 </label>
                 <label>
-                  추가 내용
-                  <textarea id="others" name="others" rows="3" maxlength="4000" placeholder="선택 사항"></textarea>
+                  <span data-i18n="body">내용</span>
+                  <textarea id="others" name="others" rows="4" maxlength="4000" data-i18n-placeholder="bodyPlaceholder" placeholder="상세 내용을 적어 주세요."></textarea>
                 </label>
                 <fieldset class="priority">
-                  <legend>토픽 · Priority</legend>
-                  <div class="scale" role="radiogroup" aria-label="Priority">
-                    <label><input type="radio" name="priority" value="0" /> Low</label>
-                    <label><input type="radio" name="priority" value="1" /> 낮음</label>
-                    <label><input type="radio" name="priority" value="2" checked /> 보통</label>
-                    <label><input type="radio" name="priority" value="3" /> 높음</label>
-                    <label><input type="radio" name="priority" value="4" /> 매우 높음</label>
-                    <label><input type="radio" name="priority" value="5" /> Super</label>
+                  <legend data-i18n="priority">우선순위</legend>
+                  <div class="scale" role="radiogroup" data-i18n-aria="priority" aria-label="우선순위">
+                    <label><input type="radio" name="priority" value="1" /> 1</label>
+                    <label><input type="radio" name="priority" value="2" /> 2</label>
+                    <label><input type="radio" name="priority" value="3" checked /> 3</label>
+                    <label><input type="radio" name="priority" value="4" /> 4</label>
+                    <label><input type="radio" name="priority" value="5" /> 5</label>
                   </div>
                 </fieldset>
-                <button type="submit" id="submit-opinion">익명으로 게시</button>
+                <button type="submit" id="submit-opinion" data-i18n="postAnonymous">익명으로 게시</button>
               </form>
               <p id="form-error" class="error" hidden></p>
             </section>
 
             <section id="view-me" class="view hidden">
-              <h1>내 정보</h1>
+              <h1 data-i18n="me">내 정보</h1>
               <div id="me-card" class="me-card hidden">
-                <p class="me-id">익명 <strong id="anon-label"></strong></p>
+                <p class="me-id"><span data-i18n="anonymous">익명</span> <strong id="anon-label"></strong></p>
                 <p id="role-label" class="chip role">User</p>
-                <p class="hint">@gm.com 이메일로 등록하면 고정 익명 ID가 유지됩니다. 메일 주소는 공개되지 않습니다.</p>
+                <p class="hint" data-i18n="meHint">@gm.com 이메일로 등록하면 고정 익명 ID가 유지됩니다. 메일 주소는 공개되지 않습니다.</p>
                 <div class="me-actions">
-                  <button type="button" id="my-posts-btn" class="ghost">내 글 보기</button>
-                  <button type="button" id="logout" class="ghost">로그아웃</button>
+                  <button type="button" id="my-posts-btn" class="ghost" data-i18n="viewMyPosts">내 글 보기</button>
+                  <button type="button" id="logout" class="ghost" data-i18n="logout">로그아웃</button>
                 </div>
               </div>
               <section id="my-posts" class="me-card hidden">
-                <h2 class="subhead">내 글</h2>
+                <h2 class="subhead" data-i18n="myPosts">내 글</h2>
                 <div id="my-post-list"></div>
               </section>
               <section id="my-comments" class="me-card hidden">
-                <h2 class="subhead">내 댓글</h2>
+                <h2 class="subhead" data-i18n="myComments">내 댓글</h2>
                 <div id="my-comment-list"></div>
               </section>
               <section id="gate" class="me-card">
-                <h2>이메일 등록</h2>
-                <p class="hint">@gm.com 이메일로 등록한 뒤 익명으로 참여합니다. 메일 주소는 공개되지 않습니다.</p>
+                <h2 data-i18n="emailRegister">이메일 등록</h2>
+                <p class="hint" data-i18n="registerHint">@gm.com 이메일로 등록한 뒤 익명으로 참여합니다. 메일 주소는 공개되지 않습니다.</p>
                 <form id="auth-form" class="stack">
                   <label>
-                    Email <span class="req">필수</span>
+                    Email <span class="req" data-i18n="required">필수</span>
                     <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@gm.com" />
                   </label>
-                  <button type="submit">등록하고 입장</button>
+                  <button type="submit" data-i18n="registerEnter">등록하고 입장</button>
                 </form>
                 <p id="auth-error" class="error" hidden></p>
               </section>
@@ -128,6 +132,6 @@
         </div>
       </div>
     </div>
-    <script src="app.js" type="module"></script>
+    <script src="app.js?v=20260920b" type="module"></script>
   </body>
 </html>

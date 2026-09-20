@@ -121,6 +121,8 @@ export function createStore(filePath) {
         existing.priority = priority;
         existing.source = "google";
         existing.formKey = formKey;
+        if (!existing.status) existing.status = "open";
+        if (!existing.kind) existing.kind = "proposal";
         existing.updatedAt = new Date().toISOString();
         if (createdAt && !existing.createdAt) existing.createdAt = createdAt;
         await persist();
@@ -133,6 +135,8 @@ export function createStore(filePath) {
         ask,
         others,
         priority,
+        status: "open",
+        kind: "proposal",
         source: "google",
         formKey,
         createdAt: createdAt || new Date().toISOString(),
@@ -142,15 +146,35 @@ export function createStore(filePath) {
       await persist();
       return opinion;
     },
-    async createOpinion({ userId, ask, others, priority, source = "app", formKey = "" }) {
+    async createOpinion({
+      userId,
+      ask,
+      others,
+      priority,
+      source = "app",
+      formKey = "",
+      status = "open",
+      kind = "proposal",
+      askEn = "",
+      othersEn = "",
+      askTranslatedFrom = "",
+      othersTranslatedFrom = "",
+    }) {
       const id = randomUUID();
+      const nextKind = kind === "share" ? "share" : "proposal";
       const opinion = {
         id,
         number: takeNumber(),
         userId,
         ask,
         others,
+        askEn,
+        othersEn,
+        askTranslatedFrom,
+        othersTranslatedFrom,
         priority,
+        kind: nextKind,
+        status: nextKind === "share" ? "none" : status === "done" ? "done" : "open",
         source,
         formKey: formKey || `app:${userId}:${id}`,
         createdAt: new Date().toISOString(),
@@ -160,13 +184,43 @@ export function createStore(filePath) {
       await persist();
       return opinion;
     },
-    async updateOpinion(id, { ask, others, priority }) {
+    async updateOpinion(id, {
+      ask,
+      others,
+      priority,
+      status,
+      kind,
+      askEn,
+      othersEn,
+      askTranslatedFrom,
+      othersTranslatedFrom,
+    }) {
       const opinion = db.opinions.find((item) => item.id === id);
       if (!opinion) return null;
       opinion.ask = ask;
       opinion.others = others;
       opinion.priority = priority;
+      if (kind === "share" || kind === "proposal") opinion.kind = kind;
+      if (opinion.kind === "share") {
+        opinion.status = "none";
+      } else if (status === "open" || status === "done") {
+        opinion.status = status;
+      }
+      if (askEn !== undefined) opinion.askEn = askEn;
+      if (othersEn !== undefined) opinion.othersEn = othersEn;
+      if (askTranslatedFrom !== undefined) opinion.askTranslatedFrom = askTranslatedFrom;
+      if (othersTranslatedFrom !== undefined) opinion.othersTranslatedFrom = othersTranslatedFrom;
       opinion.updatedAt = new Date().toISOString();
+      await persist();
+      return opinion;
+    },
+    async saveTranslations(id, { askEn, othersEn, askTranslatedFrom, othersTranslatedFrom }) {
+      const opinion = db.opinions.find((item) => item.id === id);
+      if (!opinion) return null;
+      opinion.askEn = askEn ?? "";
+      opinion.othersEn = othersEn ?? "";
+      opinion.askTranslatedFrom = askTranslatedFrom ?? "";
+      opinion.othersTranslatedFrom = othersTranslatedFrom ?? "";
       await persist();
       return opinion;
     },

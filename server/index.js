@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { GOOGLE_FORM_EDIT_URL, submitToGoogleForm } from "./googleForm.js";
 import { createStore } from "./store.js";
+import { bilingualFields, needsTranslation } from "./translate.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -161,6 +162,33 @@ function parsePriority(value) {
   return priority;
 }
 
+function parseStatus(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "done" || raw === "완료" || raw === "closed") return "done";
+  if (raw === "open" || raw === "대기" || raw === "pending" || raw === "") return "open";
+  return null;
+}
+
+function parseKind(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "share" || raw === "공유" || raw === "공유하기") return "share";
+  return "proposal";
+}
+
+function kindOf(opinion) {
+  return parseKind(opinion?.kind) === "share" ? "share" : "proposal";
+}
+
+function statusOf(opinion) {
+  if (kindOf(opinion) === "share") return "none";
+  return parseStatus(opinion?.status) === "done" ? "done" : "open";
+}
+
+function statusLabel(status) {
+  if (status === "none") return "";
+  return status === "done" ? "완료" : "대기";
+}
+
 function summarizeRatings(opinionId, currentUserId) {
   const ratings = store.listRatings(opinionId);
   const total = ratings.reduce((sum, rating) => sum + Number(rating.stars || 0), 0);
@@ -200,7 +228,14 @@ function publicOpinion(opinion, currentUserId, email = "") {
     anonId: author?.anonId ?? "VOC-UNKNOWN",
     ask: opinion.ask,
     others: opinion.others,
+    askEn: opinion.askEn || "",
+    othersEn: opinion.othersEn || "",
     priority: opinion.priority,
+    severity: Number(opinion.priority) || 0,
+    kind: kindOf(opinion),
+    kindLabel: kindOf(opinion) === "share" ? "공유" : "제안",
+    status: statusOf(opinion),
+    statusLabel: statusLabel(statusOf(opinion)),
     votes: store.countVotes(opinion.id),
     voted: currentUserId ? Boolean(store.findVote(currentUserId, opinion.id)) : false,
     ratingAvg: rating.avg,
@@ -308,18 +343,32 @@ async function issueSession(res, email) {
   };
 }
 
-app.post("/api/auth", async (req, res) => {
+async function registerByEmail(req, res) {
   const email = normalizeEmail(req.body?.email);
   if (!EMAIL_PATTERN.test(email) || !isGmEmail(email)) {
     res.status(400).json({ error: AUTH_EMAIL_ERROR });
     return;
   }
   try {
-    res.json(await issueSession(res, email));
+    const session = await issueSession(res, email);
+    if (req.path === "/api/auth/request") {
+      res.json({
+        ok: true,
+        email,
+        message: "등록되었습니다. 인증 코드를 입력하면 바로 입장합니다.",
+        ...session,
+      });
+      return;
+    }
+    res.json(session);
   } catch (error) {
     res.status(400).json({ error: error.message || "이메일 등록에 실패했습니다." });
   }
-});
+}
+
+app.post("/api/auth", registerByEmail);
+app.post("/api/auth/request", registerByEmail);
+app.post("/api/auth/verify", registerByEmail);
 
 app.get("/api/me", requireUser, (req, res) => {
   res.json({
@@ -328,6 +377,29 @@ app.get("/api/me", requireUser, (req, res) => {
     isAdmin: isAdmin(req.email),
   });
 });
+
+async function applyTranslations(opinion) {
+  if (!opinion || !needsTranslation(opinion)) return opinion;
+  const fields = await bilingualFields(opinion.ask, opinion.others, opinion);
+  return (await store.saveTranslations(opinion.id, fields)) || { ...opinion, ...fields };
+}
+
+let hydrateQueued = false;
+function enqueueTranslationHydration() {
+  if (hydrateQueued) return;
+  hydrateQueued = true;
+  setImmediate(async () => {
+    try {
+      for (const item of store.listOpinions()) {
+        await applyTranslations(item);
+      }
+    } catch (error) {
+      console.error("translation hydrate failed", error);
+    } finally {
+      hydrateQueued = false;
+    }
+  });
+}
 
 app.get("/api/opinions", async (req, res) => {
   await importGoogleRespondents();
@@ -343,6 +415,7 @@ app.get("/api/opinions", async (req, res) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   res.json({ items });
+  enqueueTranslationHydration();
 });
 
 app.post("/api/opinions", requireUser, async (req, res) => {
@@ -358,6 +431,8 @@ app.post("/api/opinions", requireUser, async (req, res) => {
     return;
   }
 
+  const kind = parseKind(req.body?.kind);
+  const translations = await bilingualFields(ask, others);
   const googleForm = await syncGoogleForm({
     email: req.email,
     ask,
@@ -370,6 +445,9 @@ app.post("/api/opinions", requireUser, async (req, res) => {
     ask,
     others,
     priority,
+    kind,
+    status: kind === "share" ? "none" : "open",
+    ...translations,
   });
   res.status(201).json({
     item: publicOpinion(opinion, req.user.id, req.email),
@@ -407,7 +485,36 @@ app.put("/api/opinions/:id", requireUser, async (req, res) => {
     priority,
   });
 
-  const opinion = await store.updateOpinion(existing.id, { ask, others, priority });
+  const nextKind = req.body?.kind !== undefined && String(req.body.kind ?? "") !== ""
+    ? parseKind(req.body.kind)
+    : kindOf(existing);
+  let nextStatus = nextKind === "share" ? "none" : (kindOf(existing) === "share" ? "open" : statusOf(existing));
+  if (nextKind !== "share" && req.body?.status !== undefined && req.body?.status !== null && String(req.body.status) !== "") {
+    if (!isAdmin(req.email)) {
+      res.status(403).json({ error: "상태를 변경할 권한이 없습니다." });
+      return;
+    }
+    const parsedStatus = parseStatus(req.body.status);
+    if (!parsedStatus) {
+      res.status(400).json({ error: "상태는 대기 또는 완료여야 합니다." });
+      return;
+    }
+    nextStatus = parsedStatus;
+  }
+
+  const translations = await bilingualFields(ask, others, {
+    ...existing,
+    ask,
+    others,
+  });
+  const opinion = await store.updateOpinion(existing.id, {
+    ask,
+    others,
+    priority,
+    kind: nextKind,
+    status: nextStatus,
+    ...translations,
+  });
   res.json({
     item: publicOpinion(opinion, req.user.id, req.email),
     googleForm,

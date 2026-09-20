@@ -1,12 +1,15 @@
 const state = {
   token: localStorage.getItem("voc_token") || "",
+  lang: localStorage.getItem("voc_lang") === "en" ? "en" : "ko",
   anonId: "",
   role: "",
   isAdmin: false,
   editingId: "",
   selectedId: "",
   view: "home",
-  sort: "hot",
+  sort: "new",
+  status: "open",
+  kind: "proposal",
   topic: "all",
   query: "",
   editingCommentId: "",
@@ -16,7 +19,9 @@ const state = {
 const els = {
   backBtn: document.querySelector("#back-btn"),
   headerWrite: document.querySelector("#header-write"),
-  topicTabs: document.querySelector("#topic-tabs"),
+  statusTabs: document.querySelector("#status-tabs"),
+  kindTabs: document.querySelector("#kind-tabs"),
+  sortTabs: document.querySelector("#sort-tabs"),
   viewHome: document.querySelector("#view-home"),
   viewDetail: document.querySelector("#view-detail"),
   viewWrite: document.querySelector("#view-write"),
@@ -37,14 +42,226 @@ const els = {
   feed: document.querySelector("#feed"),
   detail: document.querySelector("#detail"),
   boardMeta: document.querySelector("#board-meta"),
-  topicBar: document.querySelector("#topic-bar"),
   search: document.querySelector("#search"),
   myPosts: document.querySelector("#my-posts"),
   myComments: document.querySelector("#my-comments"),
   myPostList: document.querySelector("#my-post-list"),
   myCommentList: document.querySelector("#my-comment-list"),
   myPostsBtn: document.querySelector("#my-posts-btn"),
+  langToggle: document.querySelector("#lang-toggle"),
 };
+
+const I18N = {
+  ko: {
+    back: "뒤로",
+    home: "홈",
+    write: "글쓰기",
+    me: "내 정보",
+    mainMenu: "주요 메뉴",
+    mobileMenu: "모바일 메뉴",
+    status: "진행 상태",
+    all: "전체",
+    waiting: "대기",
+    done: "완료",
+    sort: "정렬",
+    hot: "인기",
+    latest: "최신",
+    searchPlaceholder: "글, 익명 ID, 고유번호 검색",
+    writeHint: "@gm.com 이메일로 등록한 뒤 익명으로 게시됩니다. 이메일은 노출되지 않습니다.",
+    postKind: "글 종류",
+    propose: "제안하기",
+    share: "공유하기",
+    shareChip: "공유",
+    title: "제목",
+    required: "필수",
+    titlePlaceholder: "동료들에게 전하고 싶은 의견을 적어 주세요.",
+    body: "내용",
+    bodyPlaceholder: "상세 내용을 적어 주세요.",
+    priority: "우선순위",
+    postAnonymous: "익명으로 게시",
+    anonymous: "익명",
+    admin: "관리자",
+    user: "User",
+    meHint: "@gm.com 이메일로 등록하면 고정 익명 ID가 유지됩니다. 메일 주소는 공개되지 않습니다.",
+    viewMyPosts: "내 글 보기",
+    logout: "로그아웃",
+    myPosts: "내 글",
+    myComments: "내 댓글",
+    emailRegister: "이메일 등록",
+    registerHint: "@gm.com 이메일로 등록한 뒤 익명으로 참여합니다. 메일 주소는 공개되지 않습니다.",
+    registerEnter: "등록하고 입장",
+    switchToEn: "Switch to English",
+    switchToKo: "한국어로 전환",
+    noTitle: "제목 없음",
+    justNow: "방금",
+    minutesAgo: "{n}분 전",
+    hoursAgo: "{n}시간 전",
+    daysAgo: "{n}일 전",
+    recommend: "추천 {n}",
+    comments: "댓글 {n}",
+    priorityAria: "우선순위 {n}",
+    searchResults: "{n}개 검색 결과",
+    noMatching: "조건에 맞는 게시글이 없습니다.",
+    tryOther: "다른 상태나 검색어를 선택해 보세요.",
+    firstPost: "첫 익명 글을 남겨 보세요.",
+    noPosts: "작성한 글이 없습니다.",
+    noComments: "작성한 댓글이 없습니다.",
+    editPost: "글 수정 · {n}",
+    saveEdit: "수정 저장",
+    posted: "게시했습니다.",
+    postedFormFail: "게시는 됐습니다. 폼 저장 실패: {error}",
+    gmEmailOnly: "@gm.com 이메일만 등록할 수 있습니다.",
+    requestFailed: "요청에 실패했습니다.",
+    edited: "수정 {n}",
+    myPost: "내 글",
+    revertWaiting: "대기로 되돌리기",
+    markDone: "완료 처리",
+    edit: "수정",
+    delete: "삭제",
+    save: "저장",
+    register: "등록",
+    firstComment: "첫 댓글을 남겨 보세요.",
+    commentPlaceholder: "익명 댓글 남기기",
+    loginToEngage: "이메일 등록 후 댓글과 추천을 남길 수 있습니다.",
+    commentsCount: "댓글 {n}",
+    confirmDeletePost: "{n} 글을 삭제할까요?",
+    confirmDeleteComment: "이 댓글을 삭제할까요?",
+    notFound: "글을 찾을 수 없습니다.",
+    stars: "{n}점",
+    noRating: "별점 없음",
+    people: "{n}명",
+    myRating: "내 별점 {n}",
+    priorityLabel: "우선순위 {n}",
+  },
+  en: {
+    back: "Back",
+    home: "Home",
+    write: "Write",
+    me: "Me",
+    mainMenu: "Main menu",
+    mobileMenu: "Mobile menu",
+    status: "Status",
+    all: "All",
+    waiting: "Open",
+    done: "Done",
+    sort: "Sort",
+    hot: "Popular",
+    latest: "Latest",
+    searchPlaceholder: "Search posts, anonymous ID, or number",
+    writeHint: "Register with a @gm.com email to post anonymously. Your email stays private.",
+    postKind: "Post type",
+    propose: "Propose",
+    share: "Share",
+    shareChip: "Share",
+    title: "Title",
+    required: "Required",
+    titlePlaceholder: "Share what you want colleagues to hear.",
+    body: "Details",
+    bodyPlaceholder: "Add more context.",
+    priority: "Priority",
+    postAnonymous: "Post anonymously",
+    anonymous: "Anonymous",
+    admin: "Admin",
+    user: "User",
+    meHint: "A @gm.com email keeps a stable anonymous ID. Your address is never shown.",
+    viewMyPosts: "View my posts",
+    logout: "Log out",
+    myPosts: "My posts",
+    myComments: "My comments",
+    emailRegister: "Email registration",
+    registerHint: "Register with a @gm.com email to join anonymously. Your address is never shown.",
+    registerEnter: "Register and enter",
+    switchToEn: "Switch to English",
+    switchToKo: "한국어로 전환",
+    noTitle: "Untitled",
+    justNow: "Just now",
+    minutesAgo: "{n}m ago",
+    hoursAgo: "{n}h ago",
+    daysAgo: "{n}d ago",
+    recommend: "Likes {n}",
+    comments: "Comments {n}",
+    priorityAria: "Priority {n}",
+    searchResults: "{n} results",
+    noMatching: "No posts match these filters.",
+    tryOther: "Try another status or search.",
+    firstPost: "Write the first anonymous post.",
+    noPosts: "You have not written any posts.",
+    noComments: "You have not written any comments.",
+    editPost: "Edit · {n}",
+    saveEdit: "Save changes",
+    posted: "Posted.",
+    postedFormFail: "Posted, but form save failed: {error}",
+    gmEmailOnly: "Only @gm.com emails can register.",
+    requestFailed: "The request failed.",
+    edited: "Edited {n}",
+    myPost: "Mine",
+    revertWaiting: "Move back to Open",
+    markDone: "Mark done",
+    edit: "Edit",
+    delete: "Delete",
+    save: "Save",
+    register: "Post",
+    firstComment: "Leave the first comment.",
+    commentPlaceholder: "Write an anonymous comment",
+    loginToEngage: "Register your email to comment or like.",
+    commentsCount: "Comments {n}",
+    confirmDeletePost: "Delete post {n}?",
+    confirmDeleteComment: "Delete this comment?",
+    notFound: "Post not found.",
+    stars: "{n} stars",
+    noRating: "No rating",
+    people: "{n} people",
+    myRating: "My rating {n}",
+    priorityLabel: "Priority {n}",
+  },
+};
+
+const ERROR_KEYS = {
+  "@gm.com 이메일만 등록할 수 있습니다.": "gmEmailOnly",
+  "요청에 실패했습니다.": "requestFailed",
+  "이메일 등록 후 입장해 주세요.": "loginToEngage",
+  "Ask S&E Anything 내용을 입력해 주세요.": "titlePlaceholder",
+  "Priority는 0부터 5 사이여야 합니다.": "priority",
+  "상태를 변경할 권한이 없습니다.": "markDone",
+};
+
+function t(key, vars = {}) {
+  const table = I18N[state.lang] || I18N.ko;
+  let text = table[key] ?? I18N.ko[key] ?? key;
+  for (const [name, value] of Object.entries(vars)) {
+    text = text.replaceAll(`{${name}}`, String(value));
+  }
+  return text;
+}
+
+function tError(message) {
+  const key = ERROR_KEYS[String(message || "")];
+  return key ? t(key) : String(message || t("requestFailed"));
+}
+
+function applyStaticI18n() {
+  document.documentElement.lang = state.lang === "en" ? "en" : "ko";
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+    node.placeholder = t(node.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll("[data-i18n-aria]").forEach((node) => {
+    node.setAttribute("aria-label", t(node.dataset.i18nAria));
+  });
+  if (els.langToggle) {
+    els.langToggle.textContent = state.lang === "en" ? "한" : "EN";
+    els.langToggle.setAttribute("aria-label", state.lang === "en" ? t("switchToKo") : t("switchToEn"));
+  }
+}
+
+function setLang(lang) {
+  state.lang = lang === "en" ? "en" : "ko";
+  localStorage.setItem("voc_lang", state.lang);
+  applyStaticI18n();
+  renderAll();
+}
 
 function showError(node, message, ok) {
   if (!node) return;
@@ -84,13 +301,39 @@ async function api(path, options = {}) {
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
   const response = await fetch(apiUrl(path), { ...options, headers, credentials: "same-origin" });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "요청에 실패했습니다.");
+  if (!response.ok) throw new Error(data.error || t("requestFailed"));
   return data;
 }
 
-function priorityLabel(value) {
-  const labels = ["Low", "낮음", "보통", "높음", "매우 높음", "Super"];
-  return labels[value] ?? String(value);
+function kindOf(item) {
+  return item?.kind === "share" || item?.kindLabel === "공유" ? "share" : "proposal";
+}
+
+function isShare(item) {
+  return kindOf(item) === "share";
+}
+
+function statusOf(item) {
+  if (isShare(item)) return "none";
+  return item?.status === "done" || item?.statusLabel === "완료" ? "done" : "open";
+}
+
+function statusLabel(item) {
+  if (isShare(item)) return t("shareChip");
+  return statusOf(item) === "done" ? t("done") : t("waiting");
+}
+
+function statusChip(item) {
+  if (isShare(item)) {
+    return `<span class="status-chip share">${escapeHtml(t("shareChip"))}</span>`;
+  }
+  const status = statusOf(item);
+  return `<span class="status-chip ${status}">${escapeHtml(status === "done" ? t("done") : t("waiting"))}</span>`;
+}
+
+function severityOf(item) {
+  const value = Number(item?.severity ?? item?.priority);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function escapeHtml(value) {
@@ -105,20 +348,140 @@ function relativeTime(iso, fallback) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return fallback || "";
   const diff = Date.now() - date.getTime();
-  if (diff < 60_000) return "방금";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}분 전`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}시간 전`;
-  if (diff < 86_400_000 * 7) return `${Math.floor(diff / 86_400_000)}일 전`;
+  if (diff < 60_000) return t("justNow");
+  if (diff < 3_600_000) return t("minutesAgo", { n: Math.floor(diff / 60_000) });
+  if (diff < 86_400_000) return t("hoursAgo", { n: Math.floor(diff / 3_600_000) });
+  if (diff < 86_400_000 * 7) return t("daysAgo", { n: Math.floor(diff / 86_400_000) });
   return fallback || "";
 }
 
 function titleOf(item) {
-  return String(item.ask || "").split("\n")[0].trim() || "제목 없음";
+  return String(item.ask || "").split("\n")[0].trim() || t("noTitle");
 }
 
 function previewOf(item) {
-  const extra = item.others ? `\n${item.others}` : "";
-  return `${item.ask || ""}${extra}`.trim();
+  return String(item.others || "").trim();
+}
+
+const HANGUL_RE = /[\uac00-\ud7a3]/;
+const translationCache = new Map();
+
+function hasKorean(text) {
+  return HANGUL_RE.test(String(text || ""));
+}
+
+function englishOf(primary, english) {
+  const src = String(primary || "").trim();
+  const en = String(english || "").trim();
+  if (!src || !en || en === src) return "";
+  return en;
+}
+
+function titleEnOf(item) {
+  return englishOf(titleOf(item), String(item.askEn || "").split("\n")[0].trim());
+}
+
+function bilingualHeading(tag, korean, english) {
+  const en = englishOf(korean, english);
+  const enBlock = en
+    ? `<p class="i18n-en"><span class="lang-tag">EN</span>${escapeHtml(en)}</p>`
+    : "";
+  return `<${tag}>${escapeHtml(korean)}</${tag}>${enBlock}`;
+}
+
+function bilingualParagraph(className, korean, english) {
+  const src = String(korean || "").trim();
+  if (!src) return "";
+  const en = englishOf(src, english);
+  const enBlock = en
+    ? `<p class="${className} i18n-en"><span class="lang-tag">EN</span>${escapeHtml(en)}</p>`
+    : "";
+  return `<p class="${className}">${escapeHtml(src)}</p>${enBlock}`;
+}
+
+async function translateKoToEnClient(text) {
+  const src = String(text || "").trim();
+  if (!src || !hasKorean(src)) return "";
+  if (translationCache.has(src)) return translationCache.get(src);
+
+  const pending = (async () => {
+    try {
+      const chunks = [];
+      let rest = src;
+      const max = 450;
+      while (rest.length) {
+        let piece = rest;
+        if (rest.length > max) {
+          let cut = rest.lastIndexOf("\n", max);
+          if (cut < 80) cut = rest.lastIndexOf(" ", max);
+          if (cut < 80) cut = max;
+          piece = rest.slice(0, cut);
+          rest = rest.slice(cut);
+        } else {
+          rest = "";
+        }
+        const url =
+          "https://api.mymemory.translated.net/get?q=" +
+          encodeURIComponent(piece) +
+          "&langpair=ko|en";
+        const res = await fetch(url);
+        if (!res.ok) return "";
+        const data = await res.json();
+        const translated = String(data?.responseData?.translatedText || "").trim();
+        if (!translated) return "";
+        chunks.push(translated);
+      }
+      const joined = chunks.join("\n").trim();
+      return joined && joined !== src ? joined : "";
+    } catch {
+      return "";
+    }
+  })();
+
+  translationCache.set(src, pending);
+  return pending;
+}
+
+async function hydrateItemTranslations(items) {
+  for (const item of items) {
+    let changed = false;
+    if (hasKorean(item.ask) && !String(item.askEn || "").trim()) {
+      const en = await translateKoToEnClient(item.ask);
+      if (en) {
+        item.askEn = en;
+        changed = true;
+      }
+    }
+    if (hasKorean(item.others) && !String(item.othersEn || "").trim()) {
+      const en = await translateKoToEnClient(item.others);
+      if (en) {
+        item.othersEn = en;
+        changed = true;
+      }
+    }
+    if (changed) {
+      renderFeed();
+      if (state.view === "detail") renderDetail();
+      renderMyActivity();
+    }
+  }
+}
+
+function signalBars(level) {
+  const value = Math.max(0, Math.min(5, Number(level) || 0));
+  const bars = [1, 2, 3, 4, 5]
+    .map((bar) => `<i class="${bar <= value ? "on" : ""}"></i>`)
+    .join("");
+  return `<span class="signal" aria-label="${t("priorityAria", { n: value })}"><span class="signal-bars">${bars}</span></span>`;
+}
+
+function renderMetrics(item) {
+  const comments = item.comments?.length || 0;
+  return `<div class="eng">
+      <span class="metric" aria-label="${t("recommend", { n: item.votes || 0 })}"><span class="metric-icon" aria-hidden="true">❤️</span>${item.votes || 0}</span>
+      <span class="metric" aria-label="${t("comments", { n: comments })}"><span class="metric-icon" aria-hidden="true">💬</span>${comments}</span>
+      ${isShare(item) ? "" : signalBars(severityOf(item))}
+    </div>`;
 }
 
 function findItem(id) {
@@ -128,18 +491,21 @@ function findItem(id) {
 function visibleItems() {
   const query = state.query.trim().toLowerCase();
   const items = state.items.filter((item) => {
-    if (state.topic === "form" && item.source !== "google") return false;
-    if (state.topic === "app" && item.source === "google") return false;
+    if (state.status !== "all" && !isShare(item) && statusOf(item) !== state.status) return false;
     if (state.topic === "mine" && !item.mine) return false;
-    if (/^[0-5]$/.test(state.topic) && Number(item.priority) !== Number(state.topic)) return false;
     if (!query) return true;
     const haystack = [
       item.ask,
       item.others,
+      item.askEn,
+      item.othersEn,
       item.anonId,
       item.numberLabel,
       item.postId,
-      priorityLabel(item.priority),
+      statusLabel(item),
+      t("propose"),
+      t("share"),
+      t("priorityLabel", { n: severityOf(item) }),
       item.source === "google" ? "form google" : "s&e app",
     ]
       .join(" ")
@@ -150,13 +516,8 @@ function visibleItems() {
     items.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     return items;
   }
-  if (state.sort === "all") {
-    items.sort((a, b) => (a.number || 0) - (b.number || 0));
-    return items;
-  }
   items.sort((a, b) => {
     if ((b.votes || 0) !== (a.votes || 0)) return (b.votes || 0) - (a.votes || 0);
-    if (b.ratingAvg !== a.ratingAvg) return b.ratingAvg - a.ratingAvg;
     return (b.comments?.length || 0) - (a.comments?.length || 0);
   });
   return items;
@@ -169,11 +530,6 @@ function setView(view) {
   els.viewDetail.classList.toggle("hidden", view !== "detail");
   els.viewWrite.classList.toggle("hidden", view !== "write");
   els.viewMe.classList.toggle("hidden", view !== "me");
-  els.topicTabs.classList.toggle("hidden", view !== "home");
-  if (els.topicBar) {
-    const topicOpen = view === "home" && document.querySelector('.tab[data-mode="topic"]')?.classList.contains("active");
-    els.topicBar.classList.toggle("hidden", !topicOpen);
-  }
   els.backBtn.classList.toggle("hidden", view === "home");
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === view || (view === "detail" && button.dataset.view === "home"));
@@ -187,7 +543,7 @@ function renderIdentity() {
   els.gate.classList.toggle("hidden", loggedIn);
   if (els.anonLabel) els.anonLabel.textContent = state.anonId || "";
   if (els.roleLabel) {
-    els.roleLabel.textContent = state.isAdmin ? "관리자" : "User";
+    els.roleLabel.textContent = state.isAdmin ? t("admin") : t("user");
     els.roleLabel.className = state.isAdmin ? "chip admin" : "chip role";
   }
   renderMyActivity();
@@ -211,10 +567,10 @@ function renderMyActivity() {
       ? posts
           .map(
             (item) =>
-              `<button type="button" class="me-list-item" data-open="${item.id}"><strong>${escapeHtml(item.numberLabel || "")} ${escapeHtml(titleOf(item))}</strong><span>${escapeHtml(relativeTime(item.createdAt, item.createdAtLabel))} · 댓글 ${(item.comments || []).length} · 공감 ${item.votes || 0}</span></button>`,
+              `<button type="button" class="me-list-item" data-open="${item.id}"><strong>${escapeHtml(titleOf(item))}</strong>${titleEnOf(item) ? `<span class="i18n-en"><span class="lang-tag">EN</span>${escapeHtml(titleEnOf(item))}</span>` : ""}<span>${escapeHtml(item.createdAtLabel || "")} · ${escapeHtml(isShare(item) ? t("shareChip") : statusLabel(item))} · ❤️ ${item.votes || 0} · 💬 ${(item.comments || []).length}${isShare(item) ? "" : ` · ${escapeHtml(t("priorityLabel", { n: severityOf(item) }))}`}</span></button>`,
           )
           .join("")
-      : `<p class="hint">작성한 글이 없습니다.</p>`;
+      : `<p class="hint">${t("noPosts")}</p>`;
   }
   if (els.myCommentList) {
     els.myCommentList.innerHTML = comments.length
@@ -224,28 +580,41 @@ function renderMyActivity() {
               `<button type="button" class="me-list-item" data-open="${comment.opinionId}"><strong>${escapeHtml(comment.body)}</strong><span>${escapeHtml(comment.numberLabel || "")} · ${escapeHtml(comment.title)}</span></button>`,
           )
           .join("")
-      : `<p class="hint">작성한 댓글이 없습니다.</p>`;
+      : `<p class="hint">${t("noComments")}</p>`;
   }
+}
+
+function setKind(kind) {
+  state.kind = kind === "share" ? "share" : "proposal";
+  if (els.kindTabs) {
+    els.kindTabs.querySelectorAll(".kind-tab").forEach((node) => {
+      node.classList.toggle("active", node.dataset.kind === state.kind);
+    });
+  }
+  const priorityField = document.querySelector(".priority");
+  if (priorityField) priorityField.hidden = state.kind === "share";
 }
 
 function fillForm(item) {
   document.querySelector("#ask").value = item?.ask ?? "";
   document.querySelector("#others").value = item?.others ?? "";
-  const priority = String(item?.priority ?? 2);
-  const radio = document.querySelector(`input[name="priority"][value="${priority}"]`);
+  const priority = String(item?.priority ?? 3);
+  const radio = document.querySelector(`input[name="priority"][value="${priority}"]`)
+    || document.querySelector(`input[name="priority"][value="3"]`);
   if (radio) radio.checked = true;
+  setKind(item ? kindOf(item) : "proposal");
 }
 
 function renderComposer() {
   const editing = findItem(state.editingId);
   if (editing) {
-    els.composerTitle.textContent = `글 수정 · ${editing.numberLabel}`;
+    els.composerTitle.textContent = t("editPost", { n: editing.numberLabel });
     els.composerHint.textContent = `${editing.anonId} · ${editing.createdAtLabel}`;
-    els.submit.textContent = "수정 저장";
+    els.submit.textContent = t("saveEdit");
   } else {
-    els.composerTitle.textContent = "글쓰기";
-    els.composerHint.textContent = "@gm.com 이메일로 등록한 뒤 익명으로 게시됩니다. 이메일은 노출되지 않습니다.";
-    els.submit.textContent = "익명으로 게시";
+    els.composerTitle.textContent = t("write");
+    els.composerHint.textContent = t("writeHint");
+    els.submit.textContent = t("postAnonymous");
   }
 }
 
@@ -255,11 +624,11 @@ function renderRating(item) {
     .map((stars) => {
       let filled = stars <= Math.round(item.ratingAvg || 0) ? " filled" : "";
       if (item.myRating && stars <= item.myRating) filled = " filled mine";
-      return `<button type="button" class="star-btn${filled}" data-id="${item.id}" data-stars="${stars}" ${disabled} aria-label="${stars}점">★</button>`;
+      return `<button type="button" class="star-btn${filled}" data-id="${item.id}" data-stars="${stars}" ${disabled} aria-label="${t("stars", { n: stars })}">★</button>`;
     })
     .join("");
-  let summary = item.ratingCount ? `${Number(item.ratingAvg).toFixed(1)} · ${item.ratingCount}명` : "별점 없음";
-  if (item.myRating) summary += ` · 내 별점 ${item.myRating}`;
+  let summary = item.ratingCount ? `${Number(item.ratingAvg).toFixed(1)} · ${t("people", { n: item.ratingCount })}` : t("noRating");
+  if (item.myRating) summary += ` · ${t("myRating", { n: item.myRating })}`;
   return `<div class="rating"><div class="stars">${buttons}</div><span class="rating-meta">${summary}</span></div>`;
 }
 
@@ -269,11 +638,11 @@ function renderComments(item) {
     ? comments
         .map((comment) => {
           const manage = comment.canManage
-            ? `<button type="button" class="ghost comment-edit-btn" data-comment-id="${comment.id}">수정</button><button type="button" class="comment-del" data-comment-id="${comment.id}">삭제</button>`
+            ? `<button type="button" class="ghost comment-edit-btn" data-comment-id="${comment.id}">${t("edit")}</button><button type="button" class="comment-del" data-comment-id="${comment.id}">${t("delete")}</button>`
             : "";
           const body =
             state.editingCommentId === comment.id
-              ? `<form class="comment-edit" data-comment-id="${comment.id}"><input name="body" maxlength="1000" required value="${escapeHtml(comment.body)}" /><button type="submit">저장</button></form>`
+              ? `<form class="comment-edit" data-comment-id="${comment.id}"><input name="body" maxlength="1000" required value="${escapeHtml(comment.body)}" /><button type="submit">${t("save")}</button></form>`
               : `<p>${escapeHtml(comment.body)}</p>`;
           return `<li class="comment">
             <div class="comment-meta">
@@ -285,48 +654,39 @@ function renderComments(item) {
           </li>`;
         })
         .join("")
-    : `<li class="hint">첫 댓글을 남겨 보세요.</li>`;
+    : `<li class="hint">${t("firstComment")}</li>`;
   const form = state.anonId
     ? `<form class="comment-form" data-id="${item.id}">
-        <input name="body" maxlength="1000" required placeholder="익명 댓글 남기기" />
-        <button type="submit">등록</button>
+        <input name="body" maxlength="1000" required placeholder="${t("commentPlaceholder")}" />
+        <button type="submit">${t("register")}</button>
       </form>`
-    : `<p class="hint">이메일 등록 후 댓글, 별점, 공감을 남길 수 있습니다.</p>`;
-  return `<div class="comments"><h3 class="subhead">댓글 ${comments.length}</h3><ul>${list}</ul>${form}</div>`;
+    : `<p class="hint">${t("loginToEngage")}</p>`;
+  return `<div class="comments"><h3 class="subhead">${t("commentsCount", { n: comments.length })}</h3><ul>${list}</ul>${form}</div>`;
 }
 
 function renderFeed() {
   const items = visibleItems();
-  const label = state.query || state.topic !== "all" ? "검색 결과" : "개의 익명 게시글";
+  const searching = Boolean(state.query.trim()) || state.topic === "mine";
   els.boardMeta.textContent = items.length
-    ? state.query || state.topic !== "all"
-      ? `${items.length}개 ${label}`
-      : `${items.length}개의 익명 게시글`
-    : "조건에 맞는 게시글이 없습니다.";
+    ? searching
+      ? t("searchResults", { n: items.length })
+      : ""
+    : t("noMatching");
   if (!items.length) {
-    els.feed.innerHTML = `<div class="empty">${state.items.length ? "다른 토픽이나 검색어를 선택해 보세요." : "첫 익명 글을 남겨 보세요."}</div>`;
+    els.feed.innerHTML = `<div class="empty">${state.items.length ? t("tryOther") : t("firstPost")}</div>`;
     return;
   }
   els.feed.innerHTML = items
     .map((item) => {
-      const comments = item.comments?.length || 0;
       return `<button type="button" class="post" data-open="${item.id}">
         <div class="post-top">
           <span class="company">${item.source === "google" ? "Form" : "S&E"}</span>
-          <span>${escapeHtml(item.anonId)}</span>
-          <span>·</span>
-          <span>${escapeHtml(relativeTime(item.createdAt, item.createdAtLabel))}</span>
-          <span>·</span>
-          <span>${escapeHtml(item.numberLabel || "")}</span>
+          ${statusChip(item)}
+          <span>${escapeHtml(item.createdAtLabel || relativeTime(item.createdAt, ""))}</span>
         </div>
-        <h2>${escapeHtml(titleOf(item))}</h2>
-        <p class="preview">${escapeHtml(previewOf(item))}</p>
-        <div class="eng">
-          <span>공감 ${item.votes || 0}</span>
-          <span>★ ${item.ratingCount ? Number(item.ratingAvg).toFixed(1) : "-"}</span>
-          <span>댓글 ${comments}</span>
-          <span>${escapeHtml(priorityLabel(item.priority))}</span>
-        </div>
+        ${bilingualHeading("h2", titleOf(item), titleEnOf(item))}
+        ${bilingualParagraph("preview", previewOf(item), item.othersEn)}
+        ${renderMetrics(item)}
       </button>`;
     })
     .join("");
@@ -335,36 +695,34 @@ function renderFeed() {
 function renderDetail() {
   const item = findItem(state.selectedId);
   if (!item) {
-    els.detail.innerHTML = `<div class="empty">글을 찾을 수 없습니다.</div>`;
+    els.detail.innerHTML = `<div class="empty">${t("notFound")}</div>`;
     return;
   }
   const voteDisabled = !state.anonId || item.mine || item.voted ? "disabled" : "";
   const voteClass = item.voted ? "ghost vote-btn on" : "ghost vote-btn";
   const manage = item.canManage
-    ? `<button type="button" class="ghost edit-btn" data-id="${item.id}">수정</button>
-        <button type="button" class="danger delete-btn" data-id="${item.id}">삭제</button>`
+    ? `<button type="button" class="ghost edit-btn" data-id="${item.id}">${t("edit")}</button>
+        <button type="button" class="danger delete-btn" data-id="${item.id}">${t("delete")}</button>`
+    : "";
+  const statusToggle = state.isAdmin && !isShare(item)
+    ? `<button type="button" class="ghost status-btn" data-id="${item.id}" data-status="${statusOf(item) === "done" ? "open" : "done"}">${statusOf(item) === "done" ? t("revertWaiting") : t("markDone")}</button>`
     : "";
   els.detail.innerHTML = `
     <div class="detail">
     <div class="post-top">
       <span class="company">${item.source === "google" ? "Form" : "S&E"}</span>
-      <span>${escapeHtml(item.anonId)}</span>
-      <span>·</span>
+      ${statusChip(item)}
       <span>${escapeHtml(item.createdAtLabel || "")}</span>
-      ${item.updatedAt && item.updatedAt !== item.createdAt ? `<span>· 수정 ${escapeHtml(item.updatedAtLabel || "")}</span>` : ""}
-      ${item.mine ? "<span>· 내 글</span>" : ""}
+      ${item.updatedAt && item.updatedAt !== item.createdAt ? `<span>· ${escapeHtml(t("edited", { n: item.updatedAtLabel || "" }))}</span>` : ""}
+      ${item.mine ? `<span>· ${t("myPost")}</span>` : ""}
     </div>
     <h1>${escapeHtml(titleOf(item))}</h1>
-    <p class="body">${escapeHtml(item.ask || "")}</p>
-    ${item.others ? `<p class="body">${escapeHtml(item.others)}</p>` : ""}
-    <div class="eng">
-      <span>고유번호 ${escapeHtml(item.numberLabel || "")}</span>
-      <span>${escapeHtml(item.postId || "")}</span>
-      <span>${escapeHtml(priorityLabel(item.priority))}</span>
-    </div>
-    ${renderRating(item)}
+    ${titleEnOf(item) ? `<p class="i18n-en title-en"><span class="lang-tag">EN</span>${escapeHtml(titleEnOf(item))}</p>` : ""}
+    ${bilingualParagraph("body", item.others, item.othersEn)}
+    ${renderMetrics(item)}
     <div class="actions">
-      <button type="button" class="${voteClass}" data-id="${item.id}" ${voteDisabled}>공감 ${item.votes || 0}</button>
+      <button type="button" class="${voteClass}" data-id="${item.id}" ${voteDisabled}>❤️ ${item.votes || 0}</button>
+      ${statusToggle}
       ${manage}
     </div>
     ${renderComments(item)}
@@ -373,6 +731,7 @@ function renderDetail() {
 }
 
 function renderAll() {
+  applyStaticI18n();
   renderIdentity();
   renderComposer();
   renderFeed();
@@ -430,6 +789,7 @@ async function loadOpinions() {
   if (state.editingId && !findItem(state.editingId)) state.editingId = "";
   if (state.selectedId && !findItem(state.selectedId) && state.view === "detail") setView("home");
   renderAll();
+  void hydrateItemTranslations(state.items);
 }
 
 async function restoreSession() {
@@ -453,6 +813,11 @@ async function restoreSession() {
 
 els.headerWrite.addEventListener("click", startCreate);
 els.backBtn.addEventListener("click", () => setView("home"));
+if (els.langToggle) {
+  els.langToggle.addEventListener("click", () => {
+    setLang(state.lang === "en" ? "ko" : "en");
+  });
+}
 
 document.querySelectorAll(".nav-btn").forEach((button) => {
   button.addEventListener("click", () => {
@@ -465,21 +830,31 @@ document.querySelectorAll(".nav-btn").forEach((button) => {
   });
 });
 
-els.topicTabs.addEventListener("click", (event) => {
-  const tab = event.target.closest(".tab");
-  if (!tab) return;
-  if (tab.dataset.sort) state.sort = tab.dataset.sort;
-  els.topicTabs.querySelectorAll(".tab").forEach((node) => node.classList.toggle("active", node === tab));
-  if (els.topicBar) els.topicBar.classList.toggle("hidden", tab.dataset.mode !== "topic");
-  renderFeed();
-});
+if (els.kindTabs) {
+  els.kindTabs.addEventListener("click", (event) => {
+    const tab = event.target.closest(".kind-tab");
+    if (!tab) return;
+    setKind(tab.dataset.kind || "proposal");
+  });
+}
 
-if (els.topicBar) {
-  els.topicBar.addEventListener("click", (event) => {
-    const chip = event.target.closest(".chip-tab");
-    if (!chip) return;
-    state.topic = chip.dataset.topic || "all";
-    els.topicBar.querySelectorAll(".chip-tab").forEach((node) => node.classList.toggle("active", node === chip));
+if (els.statusTabs) {
+  els.statusTabs.addEventListener("click", (event) => {
+    const tab = event.target.closest(".status-tab");
+    if (!tab) return;
+    state.status = tab.dataset.status || "all";
+    state.topic = "all";
+    els.statusTabs.querySelectorAll(".status-tab").forEach((node) => node.classList.toggle("active", node === tab));
+    renderFeed();
+  });
+}
+
+if (els.sortTabs) {
+  els.sortTabs.addEventListener("click", (event) => {
+    const tab = event.target.closest(".sort-tab");
+    if (!tab) return;
+    state.sort = tab.dataset.sort || "new";
+    els.sortTabs.querySelectorAll(".sort-tab").forEach((node) => node.classList.toggle("active", node === tab));
     renderFeed();
   });
 }
@@ -494,14 +869,16 @@ if (els.search) {
 if (els.myPostsBtn) {
   els.myPostsBtn.addEventListener("click", () => {
     state.topic = "mine";
+    state.status = "all";
     state.sort = "new";
-    els.topicTabs.querySelectorAll(".tab").forEach((node) => {
-      node.classList.toggle("active", node.dataset.mode === "topic");
-    });
-    if (els.topicBar) {
-      els.topicBar.classList.remove("hidden");
-      els.topicBar.querySelectorAll(".chip-tab").forEach((node) => {
-        node.classList.toggle("active", node.dataset.topic === "mine");
+    if (els.statusTabs) {
+      els.statusTabs.querySelectorAll(".status-tab").forEach((node) => {
+        node.classList.toggle("active", node.dataset.status === "all");
+      });
+    }
+    if (els.sortTabs) {
+      els.sortTabs.querySelectorAll(".sort-tab").forEach((node) => {
+        node.classList.toggle("active", node.dataset.sort === "new");
       });
     }
     setView("home");
@@ -517,6 +894,8 @@ els.logout.addEventListener("click", async () => {
   }
   clearSession();
   state.topic = "all";
+  state.status = "open";
+  state.sort = "new";
   state.query = "";
   state.editingCommentId = "";
   if (els.search) els.search.value = "";
@@ -535,7 +914,7 @@ els.authForm.addEventListener("submit", async (event) => {
   const email = document.querySelector("#email").value;
   try {
     if (!isGmEmail(email)) {
-      throw new Error("@gm.com 이메일만 등록할 수 있습니다.");
+      throw new Error(t("gmEmailOnly"));
     }
     const data = await api("/api/auth", {
       method: "POST",
@@ -546,7 +925,7 @@ els.authForm.addEventListener("submit", async (event) => {
     await loadOpinions();
     setView("home");
   } catch (error) {
-    showError(els.authError, error.message);
+    showError(els.authError, tError(error.message));
   }
 });
 
@@ -561,23 +940,24 @@ els.opinionForm.addEventListener("submit", async (event) => {
     ask: document.querySelector("#ask").value,
     others: document.querySelector("#others").value,
     priority: Number(document.querySelector("input[name=\"priority\"]:checked").value),
+    kind: state.kind === "share" ? "share" : "proposal",
   };
   try {
     const result = state.editingId
       ? await api(`/api/opinions/${state.editingId}`, { method: "PUT", body: JSON.stringify(payload) })
       : await api("/api/opinions", { method: "POST", body: JSON.stringify(payload) });
-    if (result.googleForm?.ok) showError(els.formError, "게시했습니다.", true);
+    if (result.googleForm?.ok) showError(els.formError, t("posted"), true);
     else if (result.googleForm && !result.googleForm.ok) {
-      showError(els.formError, `게시는 됐습니다. 폼 저장 실패: ${result.googleForm.error}`);
+      showError(els.formError, t("postedFormFail", { error: result.googleForm.error }));
     } else {
-      showError(els.formError, "게시했습니다.", true);
+      showError(els.formError, t("posted"), true);
     }
     state.editingId = "";
     fillForm(null);
     await loadOpinions();
     setView("home");
   } catch (error) {
-    showError(els.formError, error.message);
+    showError(els.formError, tError(error.message));
   }
 });
 
@@ -596,7 +976,7 @@ function bindBoard(root) {
     const deleteButton = event.target.closest(".delete-btn");
     if (deleteButton) {
       const target = findItem(deleteButton.dataset.id);
-      if (!target || !window.confirm(`${target.numberLabel} 글을 삭제할까요?`)) return;
+      if (!target || !window.confirm(t("confirmDeletePost", { n: target.numberLabel }))) return;
       await api(`/api/opinions/${target.id}`, { method: "DELETE" });
       state.selectedId = "";
       await loadOpinions();
@@ -620,8 +1000,25 @@ function bindBoard(root) {
         await api(`/api/opinions/${vote.dataset.id}/vote`, { method: "POST" });
         await loadOpinions();
       } catch (error) {
-        alert(error.message);
+        alert(tError(error.message));
       }
+      return;
+    }
+    const statusButton = event.target.closest(".status-btn");
+    if (statusButton) {
+      const target = findItem(statusButton.dataset.id);
+      if (!target || isShare(target)) return;
+      await api(`/api/opinions/${target.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          ask: target.ask,
+          others: target.others,
+          priority: target.priority,
+          kind: kindOf(target),
+          status: statusButton.dataset.status,
+        }),
+      });
+      await loadOpinions();
       return;
     }
     const commentEdit = event.target.closest(".comment-edit-btn");
@@ -632,7 +1029,7 @@ function bindBoard(root) {
     }
     const commentDel = event.target.closest(".comment-del");
     if (commentDel) {
-      if (!window.confirm("이 댓글을 삭제할까요?")) return;
+      if (!window.confirm(t("confirmDeleteComment"))) return;
       await api(`/api/comments/${commentDel.dataset.commentId}`, { method: "DELETE" });
       state.editingCommentId = "";
       await loadOpinions();

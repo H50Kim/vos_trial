@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createStore, type VocDb } from "./store.ts";
+import { bilingualFields, needsTranslation } from "./translate.ts";
 import INDEX_HTML from "./www/index.html.ts";
 import APP_JS from "./www/app.js.ts";
 import STYLES_CSS from "./www/styles.css.ts";
@@ -124,6 +125,33 @@ function parsePriority(value: unknown) {
   return priority;
 }
 
+function parseStatus(value: unknown) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "done" || raw === "완료" || raw === "closed") return "done";
+  if (raw === "open" || raw === "대기" || raw === "pending" || raw === "") return "open";
+  return null;
+}
+
+function parseKind(value: unknown) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "share" || raw === "공유" || raw === "공유하기") return "share";
+  return "proposal";
+}
+
+function kindOf(opinion: Record<string, unknown> | null) {
+  return parseKind(opinion?.kind) === "share" ? "share" : "proposal";
+}
+
+function statusOf(opinion: Record<string, unknown> | null) {
+  if (kindOf(opinion) === "share") return "none";
+  return parseStatus(opinion?.status) === "done" ? "done" : "open";
+}
+
+function statusLabel(status: string) {
+  if (status === "none") return "";
+  return status === "done" ? "완료" : "대기";
+}
+
 function formatNumber(value: unknown) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < 1) return "";
@@ -190,7 +218,14 @@ function publicOpinion(opinion: Record<string, unknown>, currentUserId: string, 
     anonId: author?.anonId ?? "VOC-UNKNOWN",
     ask: opinion.ask,
     others: opinion.others,
+    askEn: opinion.askEn || "",
+    othersEn: opinion.othersEn || "",
     priority: opinion.priority,
+    severity: Number(opinion.priority) || 0,
+    kind: kindOf(opinion),
+    kindLabel: kindOf(opinion) === "share" ? "공유" : "제안",
+    status: statusOf(opinion),
+    statusLabel: statusLabel(statusOf(opinion)),
     votes: store.countVotes(String(opinion.id)),
     voted: currentUserId ? Boolean(store.findVote(currentUserId, String(opinion.id))) : false,
     ratingAvg: rating.avg,
@@ -207,6 +242,32 @@ function publicOpinion(opinion: Record<string, unknown>, currentUserId: string, 
       publicComment(comment, currentUserId, email)
     ),
   };
+}
+
+async function applyTranslations(opinion: Record<string, unknown> | null) {
+  if (!opinion?.id || !needsTranslation(opinion)) return opinion;
+  const fields = await bilingualFields(opinion.ask, opinion.others, opinion);
+  return (await store.saveTranslations(String(opinion.id), fields)) || { ...opinion, ...fields };
+}
+
+let hydrateQueued = false;
+function enqueueTranslationHydration() {
+  if (hydrateQueued) return;
+  hydrateQueued = true;
+  const run = async () => {
+    try {
+      for (const item of store.listOpinions()) {
+        await applyTranslations(item as Record<string, unknown>);
+      }
+    } catch (error) {
+      console.error("translation hydrate failed", error);
+    } finally {
+      hydrateQueued = false;
+    }
+  };
+  const runtime = (globalThis as { EdgeRuntime?: { waitUntil?: (task: Promise<unknown>) => void } }).EdgeRuntime;
+  if (runtime?.waitUntil) runtime.waitUntil(run());
+  else void run();
 }
 
 async function persist(payload: VocDb) {
@@ -362,13 +423,29 @@ Deno.serve(async (req) => {
     if (method === "POST" && path === "/api/auth/logout") {
       return json({ ok: true }, 200, { "Set-Cookie": "voc_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0; Secure" });
     }
-    if (method === "POST" && path === "/api/auth") {
-      const email = normalizeEmail((await readBody(req))?.email);
+    if (
+      method === "POST" &&
+      (path === "/api/auth" || path === "/api/auth/request" || path === "/api/auth/verify")
+    ) {
+      const body = await readBody(req);
+      const email = normalizeEmail(body?.email);
       if (!EMAIL_PATTERN.test(email) || !isGmEmail(email)) {
         return json({ error: AUTH_EMAIL_ERROR }, 400);
       }
       try {
         const session = await issueSession(email);
+        if (path === "/api/auth/request") {
+          return json(
+            {
+              ok: true,
+              email,
+              message: "등록되었습니다. 인증 코드를 입력하면 바로 입장합니다.",
+              ...session.body,
+            },
+            200,
+            { "Set-Cookie": session.cookie },
+          );
+        }
         return json(session.body, 200, { "Set-Cookie": session.cookie });
       } catch (error) {
         return json({ error: (error as Error).message || "이메일 등록에 실패했습니다." }, 400);
@@ -395,6 +472,7 @@ Deno.serve(async (req) => {
           if ((a.number || 0) !== (b.number || 0)) return (a.number || 0) - (b.number || 0);
           return new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime();
         });
+      enqueueTranslationHydration();
       return json({ items });
     }
     if (method === "POST" && path === "/api/opinions") {
@@ -406,12 +484,17 @@ Deno.serve(async (req) => {
       const priority = parsePriority(body?.priority);
       if (!ask) return json({ error: "Ask S&E Anything 내용을 입력해 주세요." }, 400);
       if (priority === null) return json({ error: "Priority는 0부터 5 사이여야 합니다." }, 400);
+      const kind = parseKind((body as { kind?: unknown })?.kind);
+      const translations = await bilingualFields(ask, others);
       const googleForm = await submitToGoogleForm({ email: auth.email, ask, others, priority });
       const opinion = await store.createOpinion({
         userId: String(auth.user.id),
         ask,
         others,
         priority,
+        kind,
+        status: kind === "share" ? "none" : "open",
+        ...translations,
       });
       return json({ item: publicOpinion(opinion, String(auth.user.id), auth.email), googleForm }, 201);
     }
@@ -430,7 +513,32 @@ Deno.serve(async (req) => {
       if (!ask) return json({ error: "Ask S&E Anything 내용을 입력해 주세요." }, 400);
       if (priority === null) return json({ error: "Priority는 0부터 5 사이여야 합니다." }, 400);
       const googleForm = await submitToGoogleForm({ email: auth.email, ask, others, priority });
-      const opinion = await store.updateOpinion(existing.id as string, { ask, others, priority });
+      const nextKind = (body as { kind?: unknown })?.kind !== undefined && String((body as { kind?: unknown }).kind ?? "") !== ""
+        ? parseKind((body as { kind?: unknown }).kind)
+        : kindOf(existing as Record<string, unknown>);
+      let nextStatus = nextKind === "share" ? "none" : (kindOf(existing as Record<string, unknown>) === "share" ? "open" : statusOf(existing as Record<string, unknown>));
+      const requestedStatus = (body as { status?: unknown })?.status;
+      if (nextKind !== "share" && requestedStatus !== undefined && requestedStatus !== null && String(requestedStatus) !== "") {
+        if (!isAdmin(auth.email)) {
+          return json({ error: "상태를 변경할 권한이 없습니다." }, 403);
+        }
+        const parsedStatus = parseStatus(requestedStatus);
+        if (!parsedStatus) return json({ error: "상태는 대기 또는 완료여야 합니다." }, 400);
+        nextStatus = parsedStatus;
+      }
+      const translations = await bilingualFields(ask, others, {
+        ...(existing as Record<string, unknown>),
+        ask,
+        others,
+      });
+      const opinion = await store.updateOpinion(existing.id as string, {
+        ask,
+        others,
+        priority,
+        kind: nextKind,
+        status: nextStatus,
+        ...translations,
+      });
       return json({ item: publicOpinion(opinion as Record<string, unknown>, String(auth.user.id), auth.email), googleForm });
     }
     if (params && method === "DELETE" && !params[2]) {
