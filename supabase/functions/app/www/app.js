@@ -8,10 +8,13 @@ const state = {
   selectedId: "",
   view: "home",
   sort: "new",
-  status: "open",
+  status: "all",
   kind: "proposal",
   topic: "all",
   query: "",
+  afterAuth: "",
+  banner: null,
+  saving: false,
   editingCommentId: "",
   items: [],
 };
@@ -72,12 +75,21 @@ const I18N = {
     propose: "제안하기",
     share: "공유하기",
     shareChip: "공유",
+    notice: "공지사항",
+    noticeChip: "공지",
     title: "제목",
     required: "필수",
     titlePlaceholder: "동료들에게 전하고 싶은 의견을 적어 주세요.",
     body: "내용",
     bodyPlaceholder: "상세 내용을 적어 주세요.",
     priority: "우선순위",
+    priorityHint: "1은 낮음, 5는 높음입니다.",
+    email: "이메일",
+    posting: "게시 중…",
+    loginToWrite: "글을 쓰려면 @gm.com 이메일로 먼저 등록해 주세요. 등록이 끝나면 글쓰기로 돌아갑니다.",
+    noticeAdminOnly: "공지사항은 관리자만 작성할 수 있습니다.",
+    voteOnce: "추천은 한 번만 할 수 있습니다.",
+    voteOwn: "내 글에는 추천할 수 없습니다.",
     postAnonymous: "익명으로 게시",
     anonymous: "익명",
     admin: "관리자",
@@ -153,12 +165,21 @@ const I18N = {
     propose: "Propose",
     share: "Share",
     shareChip: "Share",
+    notice: "Notice",
+    noticeChip: "Notice",
     title: "Title",
     required: "Required",
     titlePlaceholder: "Share what you want colleagues to hear.",
     body: "Details",
     bodyPlaceholder: "Add more context.",
     priority: "Priority",
+    priorityHint: "1 is lowest, 5 is highest.",
+    email: "Email",
+    posting: "Posting…",
+    loginToWrite: "Register with a @gm.com email first. You will return to Write after that.",
+    noticeAdminOnly: "Only admins can post notices.",
+    voteOnce: "You can like a post only once.",
+    voteOwn: "You cannot like your own post.",
     postAnonymous: "Post anonymously",
     anonymous: "Anonymous",
     admin: "Admin",
@@ -223,6 +244,8 @@ const ERROR_KEYS = {
   "Ask S&E Anything 내용을 입력해 주세요.": "titlePlaceholder",
   "Priority는 0부터 5 사이여야 합니다.": "priority",
   "상태를 변경할 권한이 없습니다.": "markDone",
+  "공지사항은 관리자만 작성할 수 있습니다.": "noticeAdminOnly",
+  "이미 이 의견에 투표했습니다. 투표는 한 번만 가능합니다.": "voteOnce",
 };
 
 function t(key, vars = {}) {
@@ -306,29 +329,76 @@ async function api(path, options = {}) {
 }
 
 function kindOf(item) {
-  return item?.kind === "share" || item?.kindLabel === "공유" ? "share" : "proposal";
+  if (item?.kind === "notice" || item?.kindLabel === "공지" || item?.kindLabel === "공지사항") return "notice";
+  if (item?.kind === "share" || item?.kindLabel === "공유") return "share";
+  return "proposal";
 }
 
 function isShare(item) {
   return kindOf(item) === "share";
 }
 
+function isNotice(item) {
+  return kindOf(item) === "notice";
+}
+
+function isProposal(item) {
+  return kindOf(item) === "proposal";
+}
+
 function statusOf(item) {
-  if (isShare(item)) return "none";
+  if (!isProposal(item)) return "none";
   return item?.status === "done" || item?.statusLabel === "완료" ? "done" : "open";
 }
 
 function statusLabel(item) {
+  if (isNotice(item)) return t("noticeChip");
   if (isShare(item)) return t("shareChip");
   return statusOf(item) === "done" ? t("done") : t("waiting");
 }
 
 function statusChip(item) {
+  if (isNotice(item)) {
+    return `<span class="status-chip notice"><span class="chip-emoji" aria-hidden="true">📌</span>${escapeHtml(t("noticeChip"))}</span>`;
+  }
   if (isShare(item)) {
-    return `<span class="status-chip share">${escapeHtml(t("shareChip"))}</span>`;
+    return `<span class="status-chip share"><span class="chip-emoji" aria-hidden="true">📢</span>${escapeHtml(t("shareChip"))}</span>`;
   }
   const status = statusOf(item);
-  return `<span class="status-chip ${status}">${escapeHtml(status === "done" ? t("done") : t("waiting"))}</span>`;
+  const emoji = status === "done" ? "✅" : "⏳";
+  return `<span class="status-chip ${status}"><span class="chip-emoji" aria-hidden="true">${emoji}</span>${escapeHtml(status === "done" ? t("done") : t("waiting"))}</span>`;
+}
+
+function matchesStatus(item, status) {
+  if (status === "all") return true;
+  if (status === "notice") return isNotice(item);
+  if (status === "share") return isShare(item);
+  return isProposal(item) && statusOf(item) === status;
+}
+
+function statusCounts() {
+  const counts = { all: 0, notice: 0, share: 0, open: 0, done: 0 };
+  for (const item of state.items) {
+    counts.all += 1;
+    if (isNotice(item)) counts.notice += 1;
+    else if (isShare(item)) counts.share += 1;
+    else if (statusOf(item) === "done") counts.done += 1;
+    else counts.open += 1;
+  }
+  return counts;
+}
+
+function renderStatusTabs() {
+  if (!els.statusTabs) return;
+  const counts = statusCounts();
+  els.statusTabs.querySelectorAll(".status-tab").forEach((tab) => {
+    const status = tab.dataset.status;
+    const countNode = tab.querySelector("[data-count]");
+    if (countNode) countNode.textContent = String(counts[status] ?? 0);
+    const active = state.status === status;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-pressed", active ? "true" : "false");
+  });
 }
 
 function severityOf(item) {
@@ -383,6 +453,9 @@ function titleEnOf(item) {
 
 function bilingualHeading(tag, korean, english) {
   const en = englishOf(korean, english);
+  if (state.lang === "en" && en) {
+    return `<${tag}>${escapeHtml(en)}</${tag}><p class="i18n-en"><span class="lang-tag">KO</span>${escapeHtml(korean)}</p>`;
+  }
   const enBlock = en
     ? `<p class="i18n-en"><span class="lang-tag">EN</span>${escapeHtml(en)}</p>`
     : "";
@@ -393,6 +466,9 @@ function bilingualParagraph(className, korean, english) {
   const src = String(korean || "").trim();
   if (!src) return "";
   const en = englishOf(src, english);
+  if (state.lang === "en" && en) {
+    return `<p class="${className}">${escapeHtml(en)}</p><p class="${className} i18n-en"><span class="lang-tag">KO</span>${escapeHtml(src)}</p>`;
+  }
   const enBlock = en
     ? `<p class="${className} i18n-en"><span class="lang-tag">EN</span>${escapeHtml(en)}</p>`
     : "";
@@ -475,12 +551,14 @@ function signalBars(level) {
   return `<span class="signal" aria-label="${t("priorityAria", { n: value })}"><span class="signal-bars">${bars}</span></span>`;
 }
 
-function renderMetrics(item) {
+function renderMetrics(item, options = {}) {
   const comments = item.comments?.length || 0;
+  const canVote = options.vote !== false && Boolean(state.anonId) && !item.mine && !item.voted;
+  const voteLabel = item.mine ? t("voteOwn") : item.voted ? t("voteOnce") : t("recommend", { n: item.votes || 0 });
   return `<div class="eng">
-      <span class="metric" aria-label="${t("recommend", { n: item.votes || 0 })}"><span class="metric-icon" aria-hidden="true">❤️</span>${item.votes || 0}</span>
+      <span class="metric${canVote ? " metric-vote" : ""}" ${canVote ? `data-vote="${item.id}"` : ""} aria-label="${escapeHtml(voteLabel)}"><span class="metric-icon" aria-hidden="true">❤️</span>${item.votes || 0}</span>
       <span class="metric" aria-label="${t("comments", { n: comments })}"><span class="metric-icon" aria-hidden="true">💬</span>${comments}</span>
-      ${isShare(item) ? "" : signalBars(severityOf(item))}
+      ${isProposal(item) ? signalBars(severityOf(item)) : ""}
     </div>`;
 }
 
@@ -491,8 +569,8 @@ function findItem(id) {
 function visibleItems() {
   const query = state.query.trim().toLowerCase();
   const items = state.items.filter((item) => {
-    if (state.status !== "all" && !isShare(item) && statusOf(item) !== state.status) return false;
     if (state.topic === "mine" && !item.mine) return false;
+    if (!matchesStatus(item, state.status)) return false;
     if (!query) return true;
     const haystack = [
       item.ask,
@@ -505,6 +583,8 @@ function visibleItems() {
       statusLabel(item),
       t("propose"),
       t("share"),
+      t("notice"),
+      t("noticeChip"),
       t("priorityLabel", { n: severityOf(item) }),
       item.source === "google" ? "form google" : "s&e app",
     ]
@@ -512,15 +592,15 @@ function visibleItems() {
       .toLowerCase();
     return haystack.includes(query);
   });
-  if (state.sort === "new") {
-    items.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-    return items;
-  }
-  items.sort((a, b) => {
+  const byBoard = (a, b) => {
+    if (state.sort === "new") return String(b.createdAt).localeCompare(String(a.createdAt));
     if ((b.votes || 0) !== (a.votes || 0)) return (b.votes || 0) - (a.votes || 0);
     return (b.comments?.length || 0) - (a.comments?.length || 0);
-  });
-  return items;
+  };
+  const notices = items.filter(isNotice).sort(byBoard);
+  const rest = items.filter((item) => !isNotice(item)).sort(byBoard);
+  if (state.status === "all") return [...notices, ...rest];
+  return items.sort(byBoard);
 }
 
 function setView(view) {
@@ -567,7 +647,7 @@ function renderMyActivity() {
       ? posts
           .map(
             (item) =>
-              `<button type="button" class="me-list-item" data-open="${item.id}"><strong>${escapeHtml(titleOf(item))}</strong>${titleEnOf(item) ? `<span class="i18n-en"><span class="lang-tag">EN</span>${escapeHtml(titleEnOf(item))}</span>` : ""}<span>${escapeHtml(item.createdAtLabel || "")} · ${escapeHtml(isShare(item) ? t("shareChip") : statusLabel(item))} · ❤️ ${item.votes || 0} · 💬 ${(item.comments || []).length}${isShare(item) ? "" : ` · ${escapeHtml(t("priorityLabel", { n: severityOf(item) }))}`}</span></button>`,
+              `<button type="button" class="me-list-item" data-open="${item.id}"><strong>${escapeHtml(titleOf(item))}</strong>${titleEnOf(item) ? `<span class="i18n-en"><span class="lang-tag">EN</span>${escapeHtml(titleEnOf(item))}</span>` : ""}<span>${escapeHtml(item.createdAtLabel || "")} · ${escapeHtml(statusLabel(item))} · ❤️ ${item.votes || 0} · 💬 ${(item.comments || []).length}${isProposal(item) ? ` · ${escapeHtml(t("priorityLabel", { n: severityOf(item) }))}` : ""}</span></button>`,
           )
           .join("")
       : `<p class="hint">${t("noPosts")}</p>`;
@@ -584,15 +664,34 @@ function renderMyActivity() {
   }
 }
 
+function canWriteNotice() {
+  const editing = findItem(state.editingId);
+  return Boolean(state.isAdmin || (editing && isNotice(editing)));
+}
+
 function setKind(kind) {
-  state.kind = kind === "share" ? "share" : "proposal";
-  if (els.kindTabs) {
-    els.kindTabs.querySelectorAll(".kind-tab").forEach((node) => {
-      node.classList.toggle("active", node.dataset.kind === state.kind);
-    });
-  }
+  const allowNotice = canWriteNotice();
+  if (kind === "notice" && !allowNotice) kind = "proposal";
+  state.kind = kind === "share" || kind === "notice" ? kind : "proposal";
+  renderKindTabs();
   const priorityField = document.querySelector(".priority");
-  if (priorityField) priorityField.hidden = state.kind === "share";
+  if (priorityField) priorityField.hidden = !isProposal({ kind: state.kind });
+}
+
+function renderKindTabs() {
+  if (!els.kindTabs) return;
+  const allowNotice = canWriteNotice();
+  els.kindTabs.classList.toggle("two", !allowNotice);
+  els.kindTabs.querySelectorAll(".kind-tab").forEach((node) => {
+    if (node.dataset.kind === "notice") node.hidden = !allowNotice;
+    node.classList.toggle("active", node.dataset.kind === state.kind);
+  });
+}
+
+function tabForKind(kind) {
+  if (kind === "share") return "share";
+  if (kind === "notice") return "notice";
+  return "open";
 }
 
 function fillForm(item) {
@@ -607,14 +706,15 @@ function fillForm(item) {
 
 function renderComposer() {
   const editing = findItem(state.editingId);
+  renderKindTabs();
   if (editing) {
     els.composerTitle.textContent = t("editPost", { n: editing.numberLabel });
     els.composerHint.textContent = `${editing.anonId} · ${editing.createdAtLabel}`;
-    els.submit.textContent = t("saveEdit");
+    if (!state.saving) els.submit.textContent = t("saveEdit");
   } else {
     els.composerTitle.textContent = t("write");
     els.composerHint.textContent = t("writeHint");
-    els.submit.textContent = t("postAnonymous");
+    if (!state.saving) els.submit.textContent = t("postAnonymous");
   }
 }
 
@@ -664,21 +764,8 @@ function renderComments(item) {
   return `<div class="comments"><h3 class="subhead">${t("commentsCount", { n: comments.length })}</h3><ul>${list}</ul>${form}</div>`;
 }
 
-function renderFeed() {
-  const items = visibleItems();
-  const searching = Boolean(state.query.trim()) || state.topic === "mine";
-  els.boardMeta.textContent = items.length
-    ? searching
-      ? t("searchResults", { n: items.length })
-      : ""
-    : t("noMatching");
-  if (!items.length) {
-    els.feed.innerHTML = `<div class="empty">${state.items.length ? t("tryOther") : t("firstPost")}</div>`;
-    return;
-  }
-  els.feed.innerHTML = items
-    .map((item) => {
-      return `<button type="button" class="post" data-open="${item.id}">
+function renderPostCard(item) {
+  return `<button type="button" class="post${isNotice(item) ? " notice" : ""}" data-open="${item.id}">
         <div class="post-top">
           <span class="company">${item.source === "google" ? "Form" : "S&E"}</span>
           ${statusChip(item)}
@@ -688,8 +775,29 @@ function renderFeed() {
         ${bilingualParagraph("preview", previewOf(item), item.othersEn)}
         ${renderMetrics(item)}
       </button>`;
-    })
-    .join("");
+}
+
+function renderFeed() {
+  const items = visibleItems();
+  const searching = Boolean(state.query.trim()) || state.topic === "mine";
+  els.boardMeta.textContent = state.banner
+    ? t(state.banner.key, state.banner.vars || {})
+    : items.length
+      ? searching
+        ? t("searchResults", { n: items.length })
+        : ""
+      : t("noMatching");
+  els.boardMeta.classList.toggle("ok", Boolean(state.banner));
+  if (!items.length) {
+    els.feed.innerHTML = `<div class="empty">${state.items.length ? t("tryOther") : t("firstPost")}</div>`;
+    return;
+  }
+  const notices = items.filter(isNotice);
+  const rest = items.filter((item) => !isNotice(item));
+  const noticeBlock = notices.length
+    ? `<section class="notice-board" aria-label="${escapeHtml(t("notice"))}">${notices.map(renderPostCard).join("")}</section>`
+    : "";
+  els.feed.innerHTML = noticeBlock + rest.map(renderPostCard).join("");
 }
 
 function renderDetail() {
@@ -704,7 +812,7 @@ function renderDetail() {
     ? `<button type="button" class="ghost edit-btn" data-id="${item.id}">${t("edit")}</button>
         <button type="button" class="danger delete-btn" data-id="${item.id}">${t("delete")}</button>`
     : "";
-  const statusToggle = state.isAdmin && !isShare(item)
+  const statusToggle = state.isAdmin && isProposal(item)
     ? `<button type="button" class="ghost status-btn" data-id="${item.id}" data-status="${statusOf(item) === "done" ? "open" : "done"}">${statusOf(item) === "done" ? t("revertWaiting") : t("markDone")}</button>`
     : "";
   els.detail.innerHTML = `
@@ -716,15 +824,14 @@ function renderDetail() {
       ${item.updatedAt && item.updatedAt !== item.createdAt ? `<span>· ${escapeHtml(t("edited", { n: item.updatedAtLabel || "" }))}</span>` : ""}
       ${item.mine ? `<span>· ${t("myPost")}</span>` : ""}
     </div>
-    <h1>${escapeHtml(titleOf(item))}</h1>
-    ${titleEnOf(item) ? `<p class="i18n-en title-en"><span class="lang-tag">EN</span>${escapeHtml(titleEnOf(item))}</p>` : ""}
+    ${bilingualHeading("h1", titleOf(item), titleEnOf(item))}
     ${bilingualParagraph("body", item.others, item.othersEn)}
-    ${renderMetrics(item)}
-    <div class="actions">
+    ${renderMetrics(item, { vote: false })}
       <button type="button" class="${voteClass}" data-id="${item.id}" ${voteDisabled}>❤️ ${item.votes || 0}</button>
       ${statusToggle}
       ${manage}
     </div>
+    ${item.voted ? `<p class="hint">${t("voteOnce")}</p>` : item.mine ? `<p class="hint">${t("voteOwn")}</p>` : ""}
     ${renderComments(item)}
     </div>
   `;
@@ -732,6 +839,7 @@ function renderDetail() {
 
 function renderAll() {
   applyStaticI18n();
+  renderStatusTabs();
   renderIdentity();
   renderComposer();
   renderFeed();
@@ -746,6 +854,8 @@ function openDetail(id) {
 
 function startCreate() {
   if (!state.anonId) {
+    state.afterAuth = "write";
+    showError(els.authError, t("loginToWrite"));
     setView("me");
     return;
   }
@@ -844,7 +954,8 @@ if (els.statusTabs) {
     if (!tab) return;
     state.status = tab.dataset.status || "all";
     state.topic = "all";
-    els.statusTabs.querySelectorAll(".status-tab").forEach((node) => node.classList.toggle("active", node === tab));
+    state.banner = null;
+    renderStatusTabs();
     renderFeed();
   });
 }
@@ -871,11 +982,7 @@ if (els.myPostsBtn) {
     state.topic = "mine";
     state.status = "all";
     state.sort = "new";
-    if (els.statusTabs) {
-      els.statusTabs.querySelectorAll(".status-tab").forEach((node) => {
-        node.classList.toggle("active", node.dataset.status === "all");
-      });
-    }
+    renderStatusTabs();
     if (els.sortTabs) {
       els.sortTabs.querySelectorAll(".sort-tab").forEach((node) => {
         node.classList.toggle("active", node.dataset.sort === "new");
@@ -894,8 +1001,9 @@ els.logout.addEventListener("click", async () => {
   }
   clearSession();
   state.topic = "all";
-  state.status = "open";
+  state.status = "all";
   state.sort = "new";
+  state.afterAuth = "";
   state.query = "";
   state.editingCommentId = "";
   if (els.search) els.search.value = "";
@@ -923,7 +1031,10 @@ els.authForm.addEventListener("submit", async (event) => {
     applySession(data);
     renderIdentity();
     await loadOpinions();
-    setView("home");
+    const next = state.afterAuth;
+    state.afterAuth = "";
+    if (next === "write") startCreate();
+    else setView("home");
   } catch (error) {
     showError(els.authError, tError(error.message));
   }
@@ -933,36 +1044,69 @@ els.opinionForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   showError(els.formError, "");
   if (!state.anonId) {
+    state.afterAuth = "write";
+    showError(els.authError, t("loginToWrite"));
     setView("me");
+    return;
+  }
+  if (state.kind === "notice" && !canWriteNotice()) {
+    showError(els.formError, t("noticeAdminOnly"));
+    setKind("proposal");
     return;
   }
   const payload = {
     ask: document.querySelector("#ask").value,
     others: document.querySelector("#others").value,
     priority: Number(document.querySelector("input[name=\"priority\"]:checked").value),
-    kind: state.kind === "share" ? "share" : "proposal",
+    kind: state.kind === "share" || state.kind === "notice" ? state.kind : "proposal",
   };
+  state.saving = true;
+  els.submit.disabled = true;
+  els.submit.textContent = t("posting");
   try {
     const result = state.editingId
       ? await api(`/api/opinions/${state.editingId}`, { method: "PUT", body: JSON.stringify(payload) })
       : await api("/api/opinions", { method: "POST", body: JSON.stringify(payload) });
-    if (result.googleForm?.ok) showError(els.formError, t("posted"), true);
-    else if (result.googleForm && !result.googleForm.ok) {
-      showError(els.formError, t("postedFormFail", { error: result.googleForm.error }));
-    } else {
-      showError(els.formError, t("posted"), true);
-    }
+    state.banner = result.googleForm && !result.googleForm.ok
+      ? { key: "postedFormFail", vars: { error: result.googleForm.error } }
+      : { key: "posted" };
+    const posted = result.item || findItem(state.editingId);
     state.editingId = "";
     fillForm(null);
     await loadOpinions();
+    state.status = tabForKind(kindOf(posted || payload));
+    state.topic = "all";
     setView("home");
+    renderAll();
   } catch (error) {
     showError(els.formError, tError(error.message));
+  } finally {
+    state.saving = false;
+    els.submit.disabled = false;
+    renderComposer();
   }
 });
 
 function bindBoard(root) {
   root.addEventListener("click", async (event) => {
+    const voteMetric = event.target.closest("[data-vote]");
+    if (voteMetric) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!state.anonId) {
+        state.afterAuth = "";
+        showError(els.authError, t("loginToEngage"));
+        setView("me");
+        return;
+      }
+      try {
+        await api(`/api/opinions/${voteMetric.getAttribute("data-vote")}/vote`, { method: "POST" });
+        await loadOpinions();
+      } catch (error) {
+        alert(tError(error.message));
+      }
+      return;
+    }
     const open = event.target.closest("[data-open]");
     if (open) {
       openDetail(open.getAttribute("data-open"));
@@ -1007,7 +1151,7 @@ function bindBoard(root) {
     const statusButton = event.target.closest(".status-btn");
     if (statusButton) {
       const target = findItem(statusButton.dataset.id);
-      if (!target || isShare(target)) return;
+      if (!target || !isProposal(target)) return;
       await api(`/api/opinions/${target.id}`, {
         method: "PUT",
         body: JSON.stringify({

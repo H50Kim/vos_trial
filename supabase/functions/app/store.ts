@@ -120,7 +120,7 @@ export function createStore(initial: VocDb | null, persist: (db: VocDb) => Promi
       othersTranslatedFrom?: string;
     }) {
       const id = crypto.randomUUID();
-      const nextKind = kind === "share" ? "share" : "proposal";
+      const nextKind = kind === "share" || kind === "notice" ? kind : "proposal";
       const opinion = {
         id,
         number: takeNumber(),
@@ -133,7 +133,7 @@ export function createStore(initial: VocDb | null, persist: (db: VocDb) => Promi
         othersTranslatedFrom,
         priority,
         kind: nextKind,
-        status: nextKind === "share" ? "none" : status === "done" ? "done" : "open",
+        status: nextKind === "share" || nextKind === "notice" ? "none" : status === "done" ? "done" : "open",
         source,
         formKey: formKey || `app:${userId}:${id}`,
         createdAt: new Date().toISOString(),
@@ -172,8 +172,8 @@ export function createStore(initial: VocDb | null, persist: (db: VocDb) => Promi
       opinion.ask = ask;
       opinion.others = others;
       opinion.priority = priority;
-      if (kind === "share" || kind === "proposal") opinion.kind = kind;
-      if (opinion.kind === "share") {
+      if (kind === "share" || kind === "proposal" || kind === "notice") opinion.kind = kind;
+      if (opinion.kind === "share" || opinion.kind === "notice") {
         opinion.status = "none";
       } else if (status === "open" || status === "done") {
         opinion.status = status;

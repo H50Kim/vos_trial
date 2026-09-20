@@ -129,15 +129,27 @@ function parseStatus(value: unknown) {
 function parseKind(value: unknown) {
   const raw = String(value ?? "").trim().toLowerCase();
   if (raw === "share" || raw === "공유" || raw === "공유하기") return "share";
+  if (raw === "notice" || raw === "공지" || raw === "공지사항") return "notice";
   return "proposal";
 }
 
 function kindOf(opinion: Record<string, unknown> | null) {
-  return parseKind(opinion?.kind) === "share" ? "share" : "proposal";
+  const kind = parseKind(opinion?.kind);
+  return kind === "share" || kind === "notice" ? kind : "proposal";
+}
+
+function kindLabelOf(kind: string) {
+  if (kind === "share") return "공유";
+  if (kind === "notice") return "공지";
+  return "제안";
+}
+
+function isStatelessKind(kind: string) {
+  return kind === "share" || kind === "notice";
 }
 
 function statusOf(opinion: Record<string, unknown> | null) {
-  if (kindOf(opinion) === "share") return "none";
+  if (isStatelessKind(kindOf(opinion))) return "none";
   return parseStatus(opinion?.status) === "done" ? "done" : "open";
 }
 
@@ -217,7 +229,7 @@ function publicOpinion(opinion: Record<string, unknown>, currentUserId: string, 
     priority: opinion.priority,
     severity: Number(opinion.priority) || 0,
     kind: kindOf(opinion),
-    kindLabel: kindOf(opinion) === "share" ? "공유" : "제안",
+    kindLabel: kindLabelOf(kindOf(opinion)),
     status: statusOf(opinion),
     statusLabel: statusLabel(statusOf(opinion)),
     votes: store.countVotes(String(opinion.id)),
@@ -479,6 +491,9 @@ Deno.serve(async (req) => {
       if (!ask) return json({ error: "Ask S&E Anything 내용을 입력해 주세요." }, 400);
       if (priority === null) return json({ error: "Priority는 0부터 5 사이여야 합니다." }, 400);
       const kind = parseKind((body as { kind?: unknown })?.kind);
+      if (kind === "notice" && !isAdmin(auth.email)) {
+        return json({ error: "공지사항은 관리자만 작성할 수 있습니다." }, 403);
+      }
       const translations = await bilingualFields(ask, others);
       const googleForm = await submitToGoogleForm({ email: auth.email, ask, others, priority });
       const opinion = await store.createOpinion({
@@ -487,7 +502,7 @@ Deno.serve(async (req) => {
         others,
         priority,
         kind,
-        status: kind === "share" ? "none" : "open",
+        status: isStatelessKind(kind) ? "none" : "open",
         ...translations,
       });
       return json({ item: publicOpinion(opinion, String(auth.user.id), auth.email), googleForm }, 201);
@@ -510,9 +525,12 @@ Deno.serve(async (req) => {
       const nextKind = (body as { kind?: unknown })?.kind !== undefined && String((body as { kind?: unknown }).kind ?? "") !== ""
         ? parseKind((body as { kind?: unknown }).kind)
         : kindOf(existing as Record<string, unknown>);
-      let nextStatus = nextKind === "share" ? "none" : (kindOf(existing as Record<string, unknown>) === "share" ? "open" : statusOf(existing as Record<string, unknown>));
+      if (nextKind === "notice" && kindOf(existing as Record<string, unknown>) !== "notice" && !isAdmin(auth.email)) {
+        return json({ error: "공지사항은 관리자만 작성할 수 있습니다." }, 403);
+      }
+      let nextStatus = isStatelessKind(nextKind) ? "none" : (isStatelessKind(kindOf(existing as Record<string, unknown>)) ? "open" : statusOf(existing as Record<string, unknown>));
       const requestedStatus = (body as { status?: unknown })?.status;
-      if (nextKind !== "share" && requestedStatus !== undefined && requestedStatus !== null && String(requestedStatus) !== "") {
+      if (!isStatelessKind(nextKind) && requestedStatus !== undefined && requestedStatus !== null && String(requestedStatus) !== "") {
         if (!isAdmin(auth.email)) {
           return json({ error: "상태를 변경할 권한이 없습니다." }, 403);
         }

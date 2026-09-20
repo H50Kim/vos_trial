@@ -172,15 +172,27 @@ function parseStatus(value) {
 function parseKind(value) {
   const raw = String(value ?? "").trim().toLowerCase();
   if (raw === "share" || raw === "공유" || raw === "공유하기") return "share";
+  if (raw === "notice" || raw === "공지" || raw === "공지사항") return "notice";
   return "proposal";
 }
 
 function kindOf(opinion) {
-  return parseKind(opinion?.kind) === "share" ? "share" : "proposal";
+  const kind = parseKind(opinion?.kind);
+  return kind === "share" || kind === "notice" ? kind : "proposal";
+}
+
+function kindLabelOf(kind) {
+  if (kind === "share") return "공유";
+  if (kind === "notice") return "공지";
+  return "제안";
+}
+
+function isStatelessKind(kind) {
+  return kind === "share" || kind === "notice";
 }
 
 function statusOf(opinion) {
-  if (kindOf(opinion) === "share") return "none";
+  if (isStatelessKind(kindOf(opinion))) return "none";
   return parseStatus(opinion?.status) === "done" ? "done" : "open";
 }
 
@@ -233,7 +245,7 @@ function publicOpinion(opinion, currentUserId, email = "") {
     priority: opinion.priority,
     severity: Number(opinion.priority) || 0,
     kind: kindOf(opinion),
-    kindLabel: kindOf(opinion) === "share" ? "공유" : "제안",
+    kindLabel: kindLabelOf(kindOf(opinion)),
     status: statusOf(opinion),
     statusLabel: statusLabel(statusOf(opinion)),
     votes: store.countVotes(opinion.id),
@@ -432,6 +444,10 @@ app.post("/api/opinions", requireUser, async (req, res) => {
   }
 
   const kind = parseKind(req.body?.kind);
+  if (kind === "notice" && !isAdmin(req.email)) {
+    res.status(403).json({ error: "공지사항은 관리자만 작성할 수 있습니다." });
+    return;
+  }
   const translations = await bilingualFields(ask, others);
   const googleForm = await syncGoogleForm({
     email: req.email,
@@ -446,7 +462,7 @@ app.post("/api/opinions", requireUser, async (req, res) => {
     others,
     priority,
     kind,
-    status: kind === "share" ? "none" : "open",
+    status: isStatelessKind(kind) ? "none" : "open",
     ...translations,
   });
   res.status(201).json({
@@ -488,8 +504,12 @@ app.put("/api/opinions/:id", requireUser, async (req, res) => {
   const nextKind = req.body?.kind !== undefined && String(req.body.kind ?? "") !== ""
     ? parseKind(req.body.kind)
     : kindOf(existing);
-  let nextStatus = nextKind === "share" ? "none" : (kindOf(existing) === "share" ? "open" : statusOf(existing));
-  if (nextKind !== "share" && req.body?.status !== undefined && req.body?.status !== null && String(req.body.status) !== "") {
+  if (nextKind === "notice" && kindOf(existing) !== "notice" && !isAdmin(req.email)) {
+    res.status(403).json({ error: "공지사항은 관리자만 작성할 수 있습니다." });
+    return;
+  }
+  let nextStatus = isStatelessKind(nextKind) ? "none" : (isStatelessKind(kindOf(existing)) ? "open" : statusOf(existing));
+  if (!isStatelessKind(nextKind) && req.body?.status !== undefined && req.body?.status !== null && String(req.body.status) !== "") {
     if (!isAdmin(req.email)) {
       res.status(403).json({ error: "상태를 변경할 권한이 없습니다." });
       return;
