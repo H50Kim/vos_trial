@@ -360,10 +360,59 @@ function estimatedDwell(times) {
   return Math.min(8 * 3600, Math.max(60, span));
 }
 
-function buildAdminDashboard() {
-  const days = [];
+const DASH_MAX_DAYS = 90;
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+function queryValue(query, key) {
+  if (!query) return "";
+  if (typeof query.get === "function") return String(query.get(key) || "");
+  const value = query[key];
+  return Array.isArray(value) ? String(value[0] || "") : String(value || "");
+}
+
+function parseDashboardRange(query) {
   const today = seoulDayKey();
-  for (let i = 6; i >= 0; i -= 1) days.push(emptyDay(addSeoulDays(today, -i)));
+  const maxStart = addSeoulDays(today, -(DASH_MAX_DAYS - 1));
+  const presetRaw = queryValue(query, "preset") || queryValue(query, "days") || "7";
+  let from = queryValue(query, "from") || queryValue(query, "start");
+  let to = queryValue(query, "to") || queryValue(query, "end");
+  const allowed = { 7: 7, 14: 14, 30: 30, 90: 90 };
+
+  if (presetRaw === "month") {
+    const monthStart = `${today.slice(0, 7)}-01`;
+    return { start: monthStart < maxStart ? maxStart : monthStart, end: today, preset: "month" };
+  }
+  if (allowed[Number(presetRaw)]) {
+    const span = allowed[Number(presetRaw)];
+    return { start: addSeoulDays(today, -(span - 1)), end: today, preset: String(span) };
+  }
+  if (DAY_KEY.test(from) && DAY_KEY.test(to)) {
+    if (from > to) {
+      const swap = from;
+      from = to;
+      to = swap;
+    }
+    if (to > today) to = today;
+    if (from > today) from = today;
+    if (from < maxStart) from = maxStart;
+    return { start: from, end: to, preset: "custom" };
+  }
+  return { start: addSeoulDays(today, -6), end: today, preset: "7" };
+}
+
+function buildRangeDays(start, end) {
+  const days = [];
+  let key = start;
+  for (let i = 0; i < DASH_MAX_DAYS && key <= end; i += 1) {
+    days.push(emptyDay(key));
+    key = addSeoulDays(key, 1);
+  }
+  return days;
+}
+
+function buildAdminDashboard(query) {
+  const range = parseDashboardRange(query);
+  const days = buildRangeDays(range.start, range.end);
   const byKey = new Map(days.map((day) => [day.key, day]));
   const weekPeople = new Set();
   const weekRegistered = new Set();
@@ -440,23 +489,34 @@ function buildAdminDashboard() {
     else board.open += 1;
   }
 
+  const periodOpinions = opinions.filter((item) => {
+    const key = seoulDayKey(item.createdAt);
+    return key && key >= range.start && key <= range.end;
+  });
+  const period = {
+    people: weekPeople.size,
+    registered: weekRegistered.size,
+    guests: Math.max(0, weekPeople.size - weekRegistered.size),
+    visits,
+    dwellSeconds,
+    avgDwellSeconds: weekPeople.size ? Math.round(dwellSeconds / weekPeople.size) : 0,
+    avgVisitSeconds: visits ? Math.round(dwellSeconds / visits) : 0,
+  };
+
   return {
     timezone: "Asia/Seoul",
     source: "store+presence",
-    range: { start: days[0].key, end: days[days.length - 1].key },
-    onlinePeople: online.size,
-    week: {
-      people: weekPeople.size,
-      registered: weekRegistered.size,
-      guests: Math.max(0, weekPeople.size - weekRegistered.size),
-      visits,
-      dwellSeconds,
-      avgDwellSeconds: weekPeople.size ? Math.round(dwellSeconds / weekPeople.size) : 0,
-      avgVisitSeconds: visits ? Math.round(dwellSeconds / visits) : 0,
+    range: {
+      start: days[0]?.key || range.start,
+      end: days[days.length - 1]?.key || range.end,
+      preset: range.preset,
     },
+    onlinePeople: online.size,
+    week: period,
+    period,
     days,
     board,
-    insights: summarizeContent(opinions),
+    insights: summarizeContent(periodOpinions),
   };
 }
 
@@ -600,13 +660,12 @@ app.post("/api/presence", async (req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/api/admin/dashboard", requireUser, (req, res) => {
-  if (!isAdmin(req.email)) {
-    res.status(403).json({ error: "관리자만 볼 수 있습니다." });
-    return;
-  }
-  res.json(buildAdminDashboard());
-});
+function sendDashboard(req, res) {
+  res.json(buildAdminDashboard(req.query));
+}
+
+app.get("/api/dashboard", sendDashboard);
+app.get("/api/admin/dashboard", sendDashboard);
 
 async function applyTranslations(opinion) {
   if (!opinion || !needsTranslation(opinion)) return opinion;

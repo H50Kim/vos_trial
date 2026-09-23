@@ -361,10 +361,61 @@ function estimatedDwell(times: number[]) {
   return Math.min(8 * 3600, Math.max(60, span));
 }
 
-function buildAdminDashboard() {
-  const days: DashDay[] = [];
+const DASH_MAX_DAYS = 90;
+const DAY_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+function queryValue(query: URLSearchParams | Record<string, unknown> | null | undefined, key: string) {
+  if (!query) return "";
+  if (typeof (query as URLSearchParams).get === "function") {
+    return String((query as URLSearchParams).get(key) || "");
+  }
+  const value = (query as Record<string, unknown>)[key];
+  return Array.isArray(value) ? String(value[0] || "") : String(value || "");
+}
+
+function parseDashboardRange(query: URLSearchParams | Record<string, unknown> | null | undefined) {
   const today = seoulDayKey();
-  for (let i = 6; i >= 0; i -= 1) days.push(emptyDay(addSeoulDays(today, -i)));
+  const maxStart = addSeoulDays(today, -(DASH_MAX_DAYS - 1));
+  const presetRaw = queryValue(query, "preset") || queryValue(query, "days") || "7";
+  let from = queryValue(query, "from") || queryValue(query, "start");
+  let to = queryValue(query, "to") || queryValue(query, "end");
+  const allowed: Record<number, number> = { 7: 7, 14: 14, 30: 30, 90: 90 };
+
+  if (presetRaw === "month") {
+    const monthStart = `${today.slice(0, 7)}-01`;
+    return { start: monthStart < maxStart ? maxStart : monthStart, end: today, preset: "month" };
+  }
+  if (allowed[Number(presetRaw)]) {
+    const span = allowed[Number(presetRaw)];
+    return { start: addSeoulDays(today, -(span - 1)), end: today, preset: String(span) };
+  }
+  if (DAY_KEY.test(from) && DAY_KEY.test(to)) {
+    if (from > to) {
+      const swap = from;
+      from = to;
+      to = swap;
+    }
+    if (to > today) to = today;
+    if (from > today) from = today;
+    if (from < maxStart) from = maxStart;
+    return { start: from, end: to, preset: "custom" };
+  }
+  return { start: addSeoulDays(today, -6), end: today, preset: "7" };
+}
+
+function buildRangeDays(start: string, end: string) {
+  const days: DashDay[] = [];
+  let key = start;
+  for (let i = 0; i < DASH_MAX_DAYS && key <= end; i += 1) {
+    days.push(emptyDay(key));
+    key = addSeoulDays(key, 1);
+  }
+  return days;
+}
+
+function buildAdminDashboard(query?: URLSearchParams | Record<string, unknown> | null) {
+  const range = parseDashboardRange(query);
+  const days = buildRangeDays(range.start, range.end);
   const byKey = new Map(days.map((day) => [day.key, day]));
   const weekPeople = new Set<string>();
   const weekRegistered = new Set<string>();
@@ -445,23 +496,34 @@ function buildAdminDashboard() {
     else board.open += 1;
   }
 
+  const periodOpinions = opinions.filter((item) => {
+    const key = seoulDayKey(String(item.createdAt || ""));
+    return key && key >= range.start && key <= range.end;
+  });
+  const period = {
+    people: weekPeople.size,
+    registered: weekRegistered.size,
+    guests: Math.max(0, weekPeople.size - weekRegistered.size),
+    visits,
+    dwellSeconds,
+    avgDwellSeconds: weekPeople.size ? Math.round(dwellSeconds / weekPeople.size) : 0,
+    avgVisitSeconds: visits ? Math.round(dwellSeconds / visits) : 0,
+  };
+
   return {
     timezone: "Asia/Seoul",
     source: "store+presence",
-    range: { start: publicDays[0].key, end: publicDays[publicDays.length - 1].key },
-    onlinePeople: online.size,
-    week: {
-      people: weekPeople.size,
-      registered: weekRegistered.size,
-      guests: Math.max(0, weekPeople.size - weekRegistered.size),
-      visits,
-      dwellSeconds,
-      avgDwellSeconds: weekPeople.size ? Math.round(dwellSeconds / weekPeople.size) : 0,
-      avgVisitSeconds: visits ? Math.round(dwellSeconds / visits) : 0,
+    range: {
+      start: publicDays[0]?.key || range.start,
+      end: publicDays[publicDays.length - 1]?.key || range.end,
+      preset: range.preset,
     },
+    onlinePeople: online.size,
+    week: period,
+    period,
     days: publicDays,
     board,
-    insights: summarizeContent(opinions),
+    insights: summarizeContent(periodOpinions),
   };
 }
 
@@ -703,11 +765,8 @@ Deno.serve(async (req) => {
       });
       return json({ ok: true });
     }
-    if (method === "GET" && path === "/api/admin/dashboard") {
-      const auth = requireUser(req);
-      if (!auth) return json({ error: "이메일 등록 후 입장해 주세요." }, 401);
-      if (!isAdmin(auth.email)) return json({ error: "관리자만 볼 수 있습니다." }, 403);
-      return json(buildAdminDashboard());
+    if (method === "GET" && (path === "/api/dashboard" || path === "/api/admin/dashboard")) {
+      return json(buildAdminDashboard(url.searchParams));
     }
     if (method === "GET" && path === "/api/opinions") {
       const session = verifyToken(readToken(req));

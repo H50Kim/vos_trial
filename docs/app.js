@@ -19,6 +19,9 @@ const state = {
   items: [],
   dashboard: null,
   dashboardError: "",
+  dashPreset: localStorage.getItem("voc_dash_preset") || "7",
+  dashFrom: localStorage.getItem("voc_dash_from") || "",
+  dashTo: localStorage.getItem("voc_dash_to") || "",
 };
 
 const els = {
@@ -31,9 +34,13 @@ const els = {
   viewDetail: document.querySelector("#view-detail"),
   viewWrite: document.querySelector("#view-write"),
   viewMe: document.querySelector("#view-me"),
-  viewHidden: document.querySelector("#view-hidden"),
-  hiddenDashboard: document.querySelector("#hidden-dashboard"),
-  hiddenBtn: document.querySelector("#hidden-btn"),
+  viewDashboard: document.querySelector("#view-dashboard"),
+  dashboardPanel: document.querySelector("#dashboard-panel"),
+  dashboardBtn: document.querySelector("#dashboard-btn"),
+  dashRangeForm: document.querySelector("#dash-range-form"),
+  dashCustom: document.querySelector("#dash-custom"),
+  dashFrom: document.querySelector("#dash-from"),
+  dashTo: document.querySelector("#dash-to"),
   gate: document.querySelector("#gate"),
   meCard: document.querySelector("#me-card"),
   identity: document.querySelector("#me-card"),
@@ -65,36 +72,42 @@ const I18N = {
     home: "홈",
     write: "글쓰기",
     me: "내 정보",
-    hidden: "Hidden",
-    hiddenDashboard: "Hidden 대시보드",
-    hiddenHint: "관리자만 볼 수 있는 주간 접속 현황입니다. 가입·게시·댓글·추천 기록과 실시간 체류를 함께 집계하며, 이메일은 표시하지 않습니다.",
-    hiddenRange: "최근 7일 · {start} ~ {end} (KST)",
-    hiddenOnline: "현재 접속",
-    hiddenPeople: "주간 접속 인원",
-    hiddenRegistered: "등록 이용자",
-    hiddenGuests: "미등록 방문",
-    hiddenVisits: "방문 횟수",
-    hiddenDwell: "총 체류시간",
-    hiddenAvgPerson: "인당 평균 체류",
-    hiddenAvgVisit: "방문당 평균 체류",
-    hiddenDaily: "일별 접속",
-    hiddenBoard: "게시판 현황",
-    hiddenInsight: "게시글 감성·키워드",
-    hiddenSentiment: "감성 요약",
-    hiddenPositive: "긍정",
-    hiddenNegative: "부정",
-    hiddenRequest: "개선 요청",
-    hiddenMixed: "혼합",
-    hiddenNeutral: "중립",
-    hiddenKeywords: "키워드 요약",
-    hiddenNoInsight: "요약할 게시글이 없습니다.",
-    hiddenPosts: "게시글",
-    hiddenComments: "댓글",
-    hiddenVotes: "추천",
-    hiddenUsers: "등록 계정",
-    hiddenEmpty: "아직 수집된 접속 기록이 없습니다. 사이트에 머무르면 체류시간이 쌓입니다.",
-    hiddenForbidden: "관리자만 볼 수 있습니다.",
-    hiddenLoading: "접속 현황을 불러오는 중…",
+    dashboard: "Dashboard",
+    dashboardHint: "가입·게시·댓글·추천 기록과 실시간 체류를 집계합니다. 이메일은 표시하지 않습니다.",
+    dashboardRange: "{label} · {start} ~ {end} (KST)",
+    dashboardOnline: "현재 접속",
+    dashboardPeople: "기간 접속 인원",
+    dashboardRegistered: "등록 이용자",
+    dashboardGuests: "미등록 방문",
+    dashboardVisits: "방문 횟수",
+    dashboardDwell: "총 체류시간",
+    dashboardAvgPerson: "인당 평균 체류",
+    dashboardAvgVisit: "방문당 평균 체류",
+    dashboardDaily: "일별 접속",
+    dashboardBoard: "게시판 현황",
+    dashboardInsight: "게시글 감성·키워드",
+    dashboardSentiment: "감성 요약",
+    dashboardPositive: "긍정",
+    dashboardNegative: "부정",
+    dashboardRequest: "개선 요청",
+    dashboardMixed: "혼합",
+    dashboardNeutral: "중립",
+    dashboardKeywords: "키워드 요약",
+    dashboardNoInsight: "이 기간에 요약할 게시글이 없습니다.",
+    dashboardPosts: "게시글",
+    dashboardComments: "댓글",
+    dashboardVotes: "추천",
+    dashboardUsers: "등록 계정",
+    dashboardEmpty: "이 기간에 수집된 접속 기록이 없습니다.",
+    dashboardLoading: "접속 현황을 불러오는 중…",
+    range7: "7일",
+    range14: "14일",
+    range30: "30일",
+    rangeMonth: "이번 달",
+    rangeCustom: "직접 선택",
+    rangeStart: "시작",
+    rangeEnd: "끝",
+    rangeApply: "적용",
     durationHours: "{h}시간 {m}분",
     durationMinutes: "{m}분 {s}초",
     durationSeconds: "{s}초",
@@ -200,36 +213,42 @@ const I18N = {
     home: "Home",
     write: "Write",
     me: "Me",
-    hidden: "Hidden",
-    hiddenDashboard: "Hidden dashboard",
-    hiddenHint: "Weekly access for admins only. Counts signups, posts, comments, likes, and live dwell time. Emails are never shown.",
-    hiddenRange: "Last 7 days · {start} – {end} (KST)",
-    hiddenOnline: "Online now",
-    hiddenPeople: "Weekly people",
-    hiddenRegistered: "Registered",
-    hiddenGuests: "Guest visits",
-    hiddenVisits: "Visits",
-    hiddenDwell: "Total dwell time",
-    hiddenAvgPerson: "Avg. dwell / person",
-    hiddenAvgVisit: "Avg. dwell / visit",
-    hiddenDaily: "Daily access",
-    hiddenBoard: "Board snapshot",
-    hiddenInsight: "Post sentiment & keywords",
-    hiddenSentiment: "Sentiment",
-    hiddenPositive: "Positive",
-    hiddenNegative: "Negative",
-    hiddenRequest: "Requests",
-    hiddenMixed: "Mixed",
-    hiddenNeutral: "Neutral",
-    hiddenKeywords: "Keyword summary",
-    hiddenNoInsight: "No posts to summarize.",
-    hiddenPosts: "Posts",
-    hiddenComments: "Comments",
-    hiddenVotes: "Likes",
-    hiddenUsers: "Registered accounts",
-    hiddenEmpty: "No visits recorded yet. Time on the site is counted while the tab stays open.",
-    hiddenForbidden: "Admins only.",
-    hiddenLoading: "Loading access stats…",
+    dashboard: "Dashboard",
+    dashboardHint: "Counts signups, posts, comments, likes, and live dwell time. Emails are never shown.",
+    dashboardRange: "{label} · {start} – {end} (KST)",
+    dashboardOnline: "Online now",
+    dashboardPeople: "People in range",
+    dashboardRegistered: "Registered",
+    dashboardGuests: "Guest visits",
+    dashboardVisits: "Visits",
+    dashboardDwell: "Total dwell time",
+    dashboardAvgPerson: "Avg. dwell / person",
+    dashboardAvgVisit: "Avg. dwell / visit",
+    dashboardDaily: "Daily access",
+    dashboardBoard: "Board snapshot",
+    dashboardInsight: "Post sentiment & keywords",
+    dashboardSentiment: "Sentiment",
+    dashboardPositive: "Positive",
+    dashboardNegative: "Negative",
+    dashboardRequest: "Requests",
+    dashboardMixed: "Mixed",
+    dashboardNeutral: "Neutral",
+    dashboardKeywords: "Keyword summary",
+    dashboardNoInsight: "No posts in this range to summarize.",
+    dashboardPosts: "Posts",
+    dashboardComments: "Comments",
+    dashboardVotes: "Likes",
+    dashboardUsers: "Registered accounts",
+    dashboardEmpty: "No visits recorded in this range.",
+    dashboardLoading: "Loading access stats…",
+    range7: "7 days",
+    range14: "14 days",
+    range30: "30 days",
+    rangeMonth: "This month",
+    rangeCustom: "Custom",
+    rangeStart: "From",
+    rangeEnd: "To",
+    rangeApply: "Apply",
     durationHours: "{h}h {m}m",
     durationMinutes: "{m}m {s}s",
     durationSeconds: "{s}s",
@@ -340,7 +359,6 @@ const ERROR_KEYS = {
   "Priority는 0부터 5 사이여야 합니다.": "priority",
   "상태를 변경할 권한이 없습니다.": "markDone",
   "공지사항은 관리자만 작성할 수 있습니다.": "noticeAdminOnly",
-  "관리자만 볼 수 있습니다.": "hiddenForbidden",
   "이미 이 의견에 투표했습니다. 투표는 한 번만 가능합니다.": "voteOnce",
 };
 
@@ -780,28 +798,24 @@ function visibleItems() {
 }
 
 function setView(view) {
-  if (view === "hidden" && !state.isAdmin) view = "home";
+  if (view === "hidden") view = "dashboard";
   state.view = view;
   document.body.dataset.view = view;
   els.viewHome.classList.toggle("hidden", view !== "home");
   els.viewDetail.classList.toggle("hidden", view !== "detail");
   els.viewWrite.classList.toggle("hidden", view !== "write");
   els.viewMe.classList.toggle("hidden", view !== "me");
-  if (els.viewHidden) els.viewHidden.classList.toggle("hidden", view !== "hidden");
+  if (els.viewDashboard) els.viewDashboard.classList.toggle("hidden", view !== "dashboard");
   els.backBtn.classList.toggle("hidden", view === "home");
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === view || (view === "detail" && button.dataset.view === "home"));
   });
   window.scrollTo(0, 0);
-  if (view === "hidden") void loadDashboard();
+  if (view === "dashboard") void loadDashboard();
 }
 
 function renderAdminNav() {
   document.body.classList.toggle("is-admin", Boolean(state.isAdmin));
-  document.querySelectorAll(".nav-hidden").forEach((node) => {
-    node.hidden = !state.isAdmin;
-  });
-  if (!state.isAdmin && state.view === "hidden") setView("home");
 }
 
 function renderIdentity() {
@@ -1050,22 +1064,77 @@ function dashCard(label, value, sub = "") {
   return `<article class="dash-card"><p class="dash-label">${escapeHtml(label)}</p><p class="dash-value">${escapeHtml(String(value))}</p>${sub ? `<p class="dash-sub">${escapeHtml(sub)}</p>` : ""}</article>`;
 }
 
-function renderDashboard() {
-  if (!els.hiddenDashboard) return;
-  if (!state.isAdmin) {
-    els.hiddenDashboard.innerHTML = `<p class="hint">${t("hiddenForbidden")}</p>`;
-    return;
+function dashToday() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+}
+
+function addDashDays(key, delta) {
+  const stamp = Date.parse(`${key}T12:00:00+09:00`);
+  if (!Number.isFinite(stamp)) return key;
+  return new Date(stamp + delta * 86400000).toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+}
+
+function rangeLabel(preset) {
+  if (preset === "14") return t("range14");
+  if (preset === "30") return t("range30");
+  if (preset === "month") return t("rangeMonth");
+  if (preset === "custom") return t("rangeCustom");
+  return t("range7");
+}
+
+function persistDashRange() {
+  localStorage.setItem("voc_dash_preset", state.dashPreset);
+  if (state.dashFrom) localStorage.setItem("voc_dash_from", state.dashFrom);
+  if (state.dashTo) localStorage.setItem("voc_dash_to", state.dashTo);
+}
+
+function syncDashRangeForm() {
+  const today = dashToday();
+  const min = addDashDays(today, -89);
+  if (els.dashFrom) {
+    els.dashFrom.min = min;
+    els.dashFrom.max = today;
+    els.dashFrom.value = state.dashFrom || addDashDays(today, -6);
   }
+  if (els.dashTo) {
+    els.dashTo.min = min;
+    els.dashTo.max = today;
+    els.dashTo.value = state.dashTo || today;
+  }
+  if (els.dashCustom) els.dashCustom.hidden = state.dashPreset !== "custom";
+  document.querySelectorAll(".range-tab").forEach((node) => {
+    node.classList.toggle("active", node.dataset.preset === state.dashPreset);
+  });
+}
+
+function setDashPreset(preset) {
+  const next = ["7", "14", "30", "month", "custom"].includes(preset) ? preset : "7";
+  state.dashPreset = next;
+  if (next === "custom") {
+    const today = dashToday();
+    if (!state.dashFrom) state.dashFrom = addDashDays(today, -6);
+    if (!state.dashTo) state.dashTo = today;
+  }
+  persistDashRange();
+  syncDashRangeForm();
+  if (state.view === "dashboard" && (next !== "custom" || (state.dashFrom && state.dashTo))) {
+    void loadDashboard();
+  }
+}
+
+function renderDashboard() {
+  if (!els.dashboardPanel) return;
+  syncDashRangeForm();
   const data = state.dashboard;
   if (state.dashboardError) {
-    els.hiddenDashboard.innerHTML = `<p class="error">${escapeHtml(tError(state.dashboardError))}</p>`;
+    els.dashboardPanel.innerHTML = `<p class="error">${escapeHtml(tError(state.dashboardError))}</p>`;
     return;
   }
   if (!data) {
-    els.hiddenDashboard.innerHTML = `<p class="hint">${t("hiddenLoading")}</p>`;
+    els.dashboardPanel.innerHTML = `<p class="hint">${t("dashboardLoading")}</p>`;
     return;
   }
-  const week = data.week || {};
+  const week = data.period || data.week || {};
   const days = Array.isArray(data.days) ? data.days : [];
   const board = data.board || {};
   const insights = data.insights || {};
@@ -1073,30 +1142,32 @@ function renderDashboard() {
   const keywords = Array.isArray(insights.keywords) ? insights.keywords : [];
   const samples = insights.samples || {};
   const maxVisits = Math.max(1, ...days.map((day) => Number(day.visits) || 0));
+  const longRange = days.length > 10;
   const bars = days
     .map((day) => {
       const visits = Number(day.visits) || 0;
       const height = Math.max(4, Math.round((visits / maxVisits) * 100));
-      const label = t(`weekday${Number(day.weekday) || 0}`);
+      const label = longRange ? String(day.key || "").slice(5) : t(`weekday${Number(day.weekday) || 0}`);
       return `<div class="dash-col"><div class="dash-track"><div class="dash-bar" style="height:${height}%" title="${escapeHtml(`${day.key} · ${visits}`)}"></div></div><span>${escapeHtml(label)}</span><strong>${visits}</strong><em>${escapeHtml(formatDwell(day.dwellSeconds))}</em></div>`;
     })
     .join("");
-  els.hiddenDashboard.innerHTML = `
-    <p class="dash-range">${escapeHtml(t("hiddenRange", { start: data.range?.start || "", end: data.range?.end || "" }))}</p>
+  const preset = data.range?.preset || state.dashPreset;
+  els.dashboardPanel.innerHTML = `
+    <p class="dash-range">${escapeHtml(t("dashboardRange", { label: rangeLabel(preset), start: data.range?.start || "", end: data.range?.end || "" }))}</p>
     <div class="dash-grid">
-      ${dashCard(t("hiddenOnline"), t("people", { n: data.onlinePeople || 0 }))}
-      ${dashCard(t("hiddenPeople"), t("people", { n: week.people || 0 }), `${t("hiddenRegistered")} ${week.registered || 0} · ${t("hiddenGuests")} ${week.guests || 0}`)}
-      ${dashCard(t("hiddenVisits"), week.visits || 0)}
-      ${dashCard(t("hiddenDwell"), formatDwell(week.dwellSeconds))}
-      ${dashCard(t("hiddenAvgPerson"), formatDwell(week.avgDwellSeconds))}
-      ${dashCard(t("hiddenAvgVisit"), formatDwell(week.avgVisitSeconds))}
+      ${dashCard(t("dashboardOnline"), t("people", { n: data.onlinePeople || 0 }))}
+      ${dashCard(t("dashboardPeople"), t("people", { n: week.people || 0 }), `${t("dashboardRegistered")} ${week.registered || 0} · ${t("dashboardGuests")} ${week.guests || 0}`)}
+      ${dashCard(t("dashboardVisits"), week.visits || 0)}
+      ${dashCard(t("dashboardDwell"), formatDwell(week.dwellSeconds))}
+      ${dashCard(t("dashboardAvgPerson"), formatDwell(week.avgDwellSeconds))}
+      ${dashCard(t("dashboardAvgVisit"), formatDwell(week.avgVisitSeconds))}
     </div>
     <section class="dash-panel">
-      <h2 class="subhead">${escapeHtml(t("hiddenDaily"))}</h2>
-      ${days.length ? `<div class="dash-chart">${bars}</div>` : `<p class="hint">${t("hiddenEmpty")}</p>`}
+      <h2 class="subhead">${escapeHtml(t("dashboardDaily"))}</h2>
+      ${days.length ? `<div class="dash-chart" style="--cols:${Math.max(7, days.length)}">${bars}</div>` : `<p class="hint">${t("dashboardEmpty")}</p>`}
       <div class="dash-table-wrap">
         <table class="dash-table">
-          <thead><tr><th>${escapeHtml(t("hiddenDaily"))}</th><th>${escapeHtml(t("hiddenPeople"))}</th><th>${escapeHtml(t("hiddenVisits"))}</th><th>${escapeHtml(t("hiddenDwell"))}</th></tr></thead>
+          <thead><tr><th>${escapeHtml(t("dashboardDaily"))}</th><th>${escapeHtml(t("dashboardPeople"))}</th><th>${escapeHtml(t("dashboardVisits"))}</th><th>${escapeHtml(t("dashboardDwell"))}</th></tr></thead>
           <tbody>
             ${days.map((day) => `<tr><td>${escapeHtml(day.key)} (${escapeHtml(t(`weekday${Number(day.weekday) || 0}`))})</td><td>${Number(day.people) || 0}</td><td>${Number(day.visits) || 0}</td><td>${escapeHtml(formatDwell(day.dwellSeconds))}</td></tr>`).join("")}
           </tbody>
@@ -1104,7 +1175,7 @@ function renderDashboard() {
       </div>
     </section>
     <section class="dash-panel">
-      <h2 class="subhead">${escapeHtml(t("hiddenInsight"))}</h2>
+      <h2 class="subhead">${escapeHtml(t("dashboardInsight"))}</h2>
       ${
         Number(insights.posts) > 0
           ? `<div class="sentiment">
@@ -1113,50 +1184,56 @@ function renderDashboard() {
                 <span class="neg" style="width:${Number(insights.negativeShare) || 0}%"></span>
               </div>
               <div class="dash-grid compact">
-                ${dashCard(t("hiddenPositive"), `${sentiment.positive || 0}`, `${insights.positiveShare || 0}%`)}
-                ${dashCard(t("hiddenNegative"), `${sentiment.negative || 0}`, `${t("hiddenRequest")} ${sentiment.request || 0}`)}
-                ${dashCard(t("hiddenRequest"), `${sentiment.request || 0}`)}
-                ${dashCard(t("hiddenNeutral"), `${(sentiment.neutral || 0) + (sentiment.mixed || 0)}`)}
+                ${dashCard(t("dashboardPositive"), `${sentiment.positive || 0}`, `${insights.positiveShare || 0}%`)}
+                ${dashCard(t("dashboardNegative"), `${sentiment.negative || 0}`, `${t("dashboardRequest")} ${sentiment.request || 0}`)}
+                ${dashCard(t("dashboardRequest"), `${sentiment.request || 0}`)}
+                ${dashCard(t("dashboardNeutral"), `${(sentiment.neutral || 0) + (sentiment.mixed || 0)}`)}
               </div>
               <div class="sentiment-samples">
-                ${sentiment.positive ? `<div><p class="dash-label">${t("hiddenPositive")}</p>${sampleList(samples.positive)}</div>` : ""}
-                ${sentiment.negative ? `<div><p class="dash-label">${t("hiddenNegative")}</p>${sampleList(samples.negative)}</div>` : ""}
-                ${sentiment.request ? `<div><p class="dash-label">${t("hiddenRequest")}</p>${sampleList(samples.request)}</div>` : ""}
+                ${sentiment.positive ? `<div><p class="dash-label">${t("dashboardPositive")}</p>${sampleList(samples.positive)}</div>` : ""}
+                ${sentiment.negative ? `<div><p class="dash-label">${t("dashboardNegative")}</p>${sampleList(samples.negative)}</div>` : ""}
+                ${sentiment.request ? `<div><p class="dash-label">${t("dashboardRequest")}</p>${sampleList(samples.request)}</div>` : ""}
               </div>
-              <h3 class="subhead">${escapeHtml(t("hiddenKeywords"))}</h3>
+              <h3 class="subhead">${escapeHtml(t("dashboardKeywords"))}</h3>
               <div class="keyword-list">
                 ${
                   keywords.length
                     ? keywords.map((item) => `<span class="keyword">${escapeHtml(item.term)} <em>${Number(item.count) || 0}</em></span>`).join("")
-                    : `<p class="hint">${t("hiddenNoInsight")}</p>`
+                    : `<p class="hint">${t("dashboardNoInsight")}</p>`
                 }
               </div>
             </div>`
-          : `<p class="hint">${t("hiddenNoInsight")}</p>`
+          : `<p class="hint">${t("dashboardNoInsight")}</p>`
       }
     </section>
     <section class="dash-panel">
-      <h2 class="subhead">${escapeHtml(t("hiddenBoard"))}</h2>
+      <h2 class="subhead">${escapeHtml(t("dashboardBoard"))}</h2>
       <div class="dash-grid compact">
-        ${dashCard(t("hiddenPosts"), board.posts || 0)}
+        ${dashCard(t("dashboardPosts"), board.posts || 0)}
         ${dashCard(t("noticeChip"), board.notices || 0)}
         ${dashCard(t("shareChip"), board.shares || 0)}
         ${dashCard(t("waiting"), board.open || 0)}
         ${dashCard(t("done"), board.done || 0)}
-        ${dashCard(t("hiddenComments"), board.comments || 0)}
-        ${dashCard(t("hiddenVotes"), board.votes || 0)}
-        ${dashCard(t("hiddenUsers"), board.users || 0)}
+        ${dashCard(t("dashboardComments"), board.comments || 0)}
+        ${dashCard(t("dashboardVotes"), board.votes || 0)}
+        ${dashCard(t("dashboardUsers"), board.users || 0)}
       </div>
     </section>
   `;
 }
 
 async function loadDashboard() {
-  if (!state.isAdmin || !els.hiddenDashboard) return;
+  if (!els.dashboardPanel) return;
   state.dashboardError = "";
   renderDashboard();
+  const params = new URLSearchParams();
+  params.set("preset", state.dashPreset);
+  if (state.dashPreset === "custom") {
+    params.set("from", state.dashFrom || "");
+    params.set("to", state.dashTo || "");
+  }
   try {
-    state.dashboard = await api("/api/admin/dashboard");
+    state.dashboard = await api(`/api/dashboard?${params.toString()}`);
   } catch (error) {
     state.dashboard = null;
     state.dashboardError = error.message || t("requestFailed");
@@ -1209,7 +1286,7 @@ function renderAll() {
   renderComposer();
   renderFeed();
   if (state.view === "detail") renderDetail();
-  if (state.view === "hidden") renderDashboard();
+  if (state.view === "dashboard") renderDashboard();
 }
 
 function openDetail(id) {
@@ -1305,9 +1382,8 @@ document.querySelectorAll(".nav-btn").forEach((button) => {
       startCreate();
       return;
     }
-    if (view === "hidden") {
-      if (!state.isAdmin) return;
-      setView("hidden");
+    if (view === "dashboard" || view === "hidden") {
+      setView("dashboard");
       return;
     }
     setView(view);
@@ -1351,10 +1427,29 @@ if (els.search) {
   });
 }
 
-if (els.hiddenBtn) {
-  els.hiddenBtn.addEventListener("click", () => {
-    if (!state.isAdmin) return;
-    setView("hidden");
+if (els.dashboardBtn) {
+  els.dashboardBtn.addEventListener("click", () => {
+    setView("dashboard");
+  });
+}
+
+if (els.dashRangeForm) {
+  els.dashRangeForm.addEventListener("click", (event) => {
+    const tab = event.target.closest(".range-tab");
+    if (!tab) return;
+    setDashPreset(tab.dataset.preset || "7");
+  });
+  els.dashRangeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const from = els.dashFrom?.value || "";
+    const to = els.dashTo?.value || "";
+    if (!from || !to) return;
+    state.dashPreset = "custom";
+    state.dashFrom = from;
+    state.dashTo = to;
+    persistDashRange();
+    syncDashRangeForm();
+    void loadDashboard();
   });
 }
 

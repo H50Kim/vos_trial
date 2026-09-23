@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#111111" />
     <title>UnBlind - S&amp;E Voice to Value</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css?v=20260923d" />
+    <link rel="stylesheet" href="styles.css?v=20260923e" />
   </head>
   <body>
     <div class="shell">
@@ -20,7 +20,7 @@
           <button type="button" class="nav-btn active" data-view="home" data-i18n="home">홈</button>
           <button type="button" class="nav-btn write" data-view="write" data-i18n="write">글쓰기</button>
           <button type="button" class="nav-btn" data-view="me" data-i18n="me">내 정보</button>
-          <button type="button" class="nav-btn nav-hidden" data-view="hidden" hidden data-i18n="hidden">Hidden</button>
+          <button type="button" class="nav-btn nav-dashboard" data-view="dashboard" data-i18n="dashboard">Dashboard</button>
         </nav>
         <button type="button" id="lang-toggle" class="lang-toggle" aria-label="Switch to English">EN</button>
         <button type="button" id="header-write" class="write-chip" data-i18n="write">글쓰기</button>
@@ -40,9 +40,9 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/></svg>
             <span data-i18n="me">내 정보</span>
           </button>
-          <button type="button" class="nav-btn nav-hidden" data-view="hidden" hidden>
+          <button type="button" class="nav-btn nav-dashboard" data-view="dashboard">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v2H3zm2 4h14v10H5zm3 2v6h2v-6zm6 0v6h2v-6z"/></svg>
-            <span data-i18n="hidden">Hidden</span>
+            <span data-i18n="dashboard">Dashboard</span>
           </button>
         </nav>
 
@@ -132,7 +132,7 @@
                 <p id="role-label" class="chip role">User</p>
                 <p class="hint" data-i18n="meHint">@gm.com 이메일로 등록하면 고정 익명 ID가 유지됩니다. 메일 주소는 공개되지 않습니다.</p>
                 <div class="me-actions">
-                  <button type="button" id="hidden-btn" class="ghost nav-hidden" hidden data-i18n="hiddenDashboard">Hidden 대시보드</button>
+                  <button type="button" id="dashboard-btn" class="ghost" data-i18n="dashboard">Dashboard</button>
                   <button type="button" id="my-posts-btn" class="ghost" data-i18n="viewMyPosts">내 글 보기</button>
                   <button type="button" id="logout" class="ghost" data-i18n="logout">로그아웃</button>
                 </div>
@@ -159,10 +159,30 @@
               </section>
             </section>
 
-            <section id="view-hidden" class="view hidden">
-              <h1 data-i18n="hidden">Hidden</h1>
-              <p class="hint" data-i18n="hiddenHint">관리자만 볼 수 있는 주간 접속 현황입니다. 가입·게시·댓글·추천 기록과 실시간 체류를 함께 집계하며, 이메일은 표시하지 않습니다.</p>
-              <div id="hidden-dashboard" class="dashboard"></div>
+            <section id="view-dashboard" class="view hidden">
+              <h1 data-i18n="dashboard">Dashboard</h1>
+              <p class="hint" data-i18n="dashboardHint">가입·게시·댓글·추천 기록과 실시간 체류를 집계합니다. 이메일은 표시하지 않습니다.</p>
+              <form id="dash-range-form" class="dash-range-form">
+                <div class="range-presets" role="tablist" aria-label="조회 기간">
+                  <button type="button" class="range-tab active" data-preset="7" data-i18n="range7">7일</button>
+                  <button type="button" class="range-tab" data-preset="14" data-i18n="range14">14일</button>
+                  <button type="button" class="range-tab" data-preset="30" data-i18n="range30">30일</button>
+                  <button type="button" class="range-tab" data-preset="month" data-i18n="rangeMonth">이번 달</button>
+                  <button type="button" class="range-tab" data-preset="custom" data-i18n="rangeCustom">직접 선택</button>
+                </div>
+                <div id="dash-custom" class="range-custom" hidden>
+                  <label>
+                    <span data-i18n="rangeStart">시작</span>
+                    <input id="dash-from" type="date" required />
+                  </label>
+                  <label>
+                    <span data-i18n="rangeEnd">끝</span>
+                    <input id="dash-to" type="date" required />
+                  </label>
+                  <button type="submit" data-i18n="rangeApply">적용</button>
+                </div>
+              </form>
+              <div id="dashboard-panel" class="dashboard"></div>
             </section>
           </main>
         </div>
@@ -179,6 +199,6 @@
         </div>
       </div>
     </div>
-    <script src="app.js?v=20260923d" type="module"></script>
+    <script src="app.js?v=20260923e" type="module"></script>
   </body>
 </html>
