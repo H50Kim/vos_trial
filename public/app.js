@@ -73,7 +73,7 @@ const I18N = {
     write: "글쓰기",
     me: "내 정보",
     dashboard: "Dashboard",
-    dashboardHint: "가입·게시·댓글·추천 기록과 실시간 체류를 집계합니다. 이메일은 표시하지 않습니다.",
+    dashboardHint: "기간을 고르면 그 구간의 접속·글만 보고, 아래 전체 누적과 구분해 보여 줍니다. 이메일은 표시하지 않습니다.",
     dashboardRange: "{label} · {start} ~ {end} (KST)",
     dashboardOnline: "현재 접속",
     dashboardPeople: "기간 접속 인원",
@@ -101,6 +101,19 @@ const I18N = {
     dashboardUsers: "등록 계정",
     dashboardEmpty: "이 기간에 수집된 접속 기록이 없습니다.",
     dashboardLoading: "접속 현황을 불러오는 중…",
+    dashboardScopePeriod: "선택한 기간",
+    dashboardScopeAll: "전체 누적",
+    dashboardPeriodHint: "아래는 {start} ~ {end}에 작성·접속된 내용만 포함합니다.",
+    dashboardAllHint: "아래는 기간과 관계없이 지금까지 쌓인 전체 집계입니다.",
+    dashboardNow: "현재 접속",
+    dashboardNowHint: "지금 열려 있는 화면 기준이며, 선택한 기간과 무관합니다.",
+    dashboardInsightPeriod: "이 기간 감성·키워드",
+    dashboardInsightAll: "전체 감성·키워드",
+    dashboardProgressPeriod: "이 기간 대기·완료",
+    dashboardProgressAll: "전체 대기·완료",
+    dashboardBoardPeriod: "이 기간 게시글",
+    dashboardBoardAll: "전체 게시판 현황",
+    dashboardNoInsightAll: "요약할 게시글이 없습니다.",
     range7: "7일",
     range14: "14일",
     range30: "30일",
@@ -215,7 +228,7 @@ const I18N = {
     write: "Write",
     me: "Me",
     dashboard: "Dashboard",
-    dashboardHint: "Counts signups, posts, comments, likes, and live dwell time. Emails are never shown.",
+    dashboardHint: "Pick a date range to see access and posts from that window, separate from all-time totals. Emails are never shown.",
     dashboardRange: "{label} · {start} – {end} (KST)",
     dashboardOnline: "Online now",
     dashboardPeople: "People in range",
@@ -243,6 +256,19 @@ const I18N = {
     dashboardUsers: "Registered accounts",
     dashboardEmpty: "No visits recorded in this range.",
     dashboardLoading: "Loading access stats…",
+    dashboardScopePeriod: "Selected range",
+    dashboardScopeAll: "All-time",
+    dashboardPeriodHint: "Figures below include only activity from {start} to {end}.",
+    dashboardAllHint: "Figures below are cumulative totals, independent of the date range.",
+    dashboardNow: "Online now",
+    dashboardNowHint: "Live right now, not limited to the selected range.",
+    dashboardInsightPeriod: "Sentiment in this range",
+    dashboardInsightAll: "All-time sentiment",
+    dashboardProgressPeriod: "Open vs done in this range",
+    dashboardProgressAll: "All-time open vs done",
+    dashboardBoardPeriod: "Posts in this range",
+    dashboardBoardAll: "All-time board",
+    dashboardNoInsightAll: "No posts to summarize.",
     range7: "7 days",
     range14: "14 days",
     range30: "30 days",
@@ -1110,6 +1136,55 @@ function keywordCloud(items) {
     .join("");
 }
 
+function keywordsForLang(insights) {
+  if (state.lang === "en" && Array.isArray(insights.keywordsEn) && insights.keywordsEn.length) {
+    return insights.keywordsEn;
+  }
+  return Array.isArray(insights.keywords) ? insights.keywords : [];
+}
+
+function insightHtml(insights, labels) {
+  const sentiment = insights?.sentiment || {};
+  const samples = insights?.samples || {};
+  const progress = insights?.progress || {};
+  const progressOpen = Number(progress.open) || 0;
+  const progressDone = Number(progress.done) || 0;
+  const progressTotal = progressOpen + progressDone;
+  const sentimentTotal = Math.max(
+    1,
+    (sentiment.positive || 0) + (sentiment.negative || 0) + (sentiment.request || 0) + (sentiment.neutral || 0) + (sentiment.mixed || 0),
+  );
+  const neutralCount = (sentiment.neutral || 0) + (sentiment.mixed || 0);
+  if (!Number(insights?.posts)) {
+    return `<p class="hint">${escapeHtml(labels.empty)}</p>`;
+  }
+  return `<div class="sentiment">
+    <h3 class="subhead">${escapeHtml(labels.insight)}</h3>
+    <div class="viz-row">
+      ${vizTile(t("dashboardPositive"), sentiment.positive || 0, sentimentTotal, "pos")}
+      ${vizTile(t("dashboardNegative"), sentiment.negative || 0, sentimentTotal, "neg")}
+      ${vizTile(t("dashboardRequest"), sentiment.request || 0, sentimentTotal, "req")}
+      ${vizTile(t("dashboardNeutral"), neutralCount, sentimentTotal, "neu")}
+    </div>
+    <div class="sentiment-samples">
+      ${sentiment.positive ? `<div><p class="dash-label">${t("dashboardPositive")}</p>${sampleList(samples.positive)}</div>` : ""}
+      ${sentiment.negative ? `<div><p class="dash-label">${t("dashboardNegative")}</p>${sampleList(samples.negative)}</div>` : ""}
+      ${sentiment.request ? `<div><p class="dash-label">${t("dashboardRequest")}</p>${sampleList(samples.request)}</div>` : ""}
+    </div>
+    <h3 class="subhead">${escapeHtml(labels.progress)}</h3>
+    <div class="sentiment-bar progress-bar" aria-hidden="true">
+      <span class="wait" style="width:${progressTotal ? Math.round((progressOpen / progressTotal) * 100) : 0}%"></span>
+      <span class="done" style="width:${progressTotal ? Math.round((progressDone / progressTotal) * 100) : 0}%"></span>
+    </div>
+    <div class="viz-row">
+      ${vizTile(t("waiting"), progressOpen, progressTotal, "wait")}
+      ${vizTile(t("done"), progressDone, progressTotal, "ok")}
+    </div>
+    <h3 class="subhead">${escapeHtml(t("dashboardKeywords"))}</h3>
+    <div class="keyword-list">${keywordCloud(keywordsForLang(insights))}</div>
+  </div>`;
+}
+
 function dashCard(label, value, sub = "") {
   return `<article class="dash-card"><p class="dash-label">${escapeHtml(label)}</p><p class="dash-value">${escapeHtml(String(value))}</p>${sub ? `<p class="dash-sub">${escapeHtml(sub)}</p>` : ""}</article>`;
 }
@@ -1187,25 +1262,9 @@ function renderDashboard() {
   const week = data.period || data.week || {};
   const days = Array.isArray(data.days) ? data.days : [];
   const board = data.board || {};
+  const periodBoard = data.periodBoard || {};
   const insights = data.insights || {};
-  const sentiment = insights.sentiment || {};
-  const keywordList =
-    state.lang === "en" && Array.isArray(insights.keywordsEn) && insights.keywordsEn.length
-      ? insights.keywordsEn
-      : Array.isArray(insights.keywords)
-        ? insights.keywords
-        : [];
-  const samples = insights.samples || {};
-  const progress = insights.progress || {};
-  const hasProgress = progress.open != null || progress.done != null;
-  const progressOpen = hasProgress ? Number(progress.open) || 0 : Number(board.open) || 0;
-  const progressDone = hasProgress ? Number(progress.done) || 0 : Number(board.done) || 0;
-  const progressTotal = progressOpen + progressDone;
-  const sentimentTotal = Math.max(
-    1,
-    (sentiment.positive || 0) + (sentiment.negative || 0) + (sentiment.request || 0) + (sentiment.neutral || 0) + (sentiment.mixed || 0),
-  );
-  const neutralCount = (sentiment.neutral || 0) + (sentiment.mixed || 0);
+  const insightsAll = data.insightsAll || {};
   const maxVisits = Math.max(1, ...days.map((day) => Number(day.visits) || 0));
   const longRange = days.length > 10;
   const bars = days
@@ -1217,18 +1276,34 @@ function renderDashboard() {
     })
     .join("");
   const preset = data.range?.preset || state.dashPreset;
+  const rangeStart = data.range?.start || "";
+  const rangeEnd = data.range?.end || "";
   els.dashboardPanel.innerHTML = `
-    <p class="dash-range">${escapeHtml(t("dashboardRange", { label: rangeLabel(preset), start: data.range?.start || "", end: data.range?.end || "" }))}</p>
-    <div class="dash-grid">
-      ${dashCard(t("dashboardOnline"), t("people", { n: data.onlinePeople || 0 }))}
-      ${dashCard(t("dashboardPeople"), t("people", { n: week.people || 0 }), `${t("dashboardRegistered")} ${week.registered || 0} · ${t("dashboardGuests")} ${week.guests || 0}`)}
-      ${dashCard(t("dashboardVisits"), week.visits || 0)}
-      ${dashCard(t("dashboardDwell"), formatDwell(week.dwellSeconds))}
-      ${dashCard(t("dashboardAvgPerson"), formatDwell(week.avgDwellSeconds))}
-      ${dashCard(t("dashboardAvgVisit"), formatDwell(week.avgVisitSeconds))}
-    </div>
-    <section class="dash-panel">
-      <h2 class="subhead">${escapeHtml(t("dashboardDaily"))}</h2>
+    <section class="dash-panel scope-now">
+      <div class="scope-head">
+        <span class="scope-chip now">${escapeHtml(t("dashboardNow"))}</span>
+        <p class="hint">${escapeHtml(t("dashboardNowHint"))}</p>
+      </div>
+      <div class="dash-grid compact">
+        ${dashCard(t("dashboardOnline"), t("people", { n: data.onlinePeople || 0 }))}
+      </div>
+    </section>
+    <section class="dash-panel scope-period">
+      <div class="scope-head">
+        <span class="scope-chip period">${escapeHtml(t("dashboardScopePeriod"))}</span>
+        <div>
+          <h2 class="subhead">${escapeHtml(t("dashboardRange", { label: rangeLabel(preset), start: rangeStart, end: rangeEnd }))}</h2>
+          <p class="hint">${escapeHtml(t("dashboardPeriodHint", { start: rangeStart, end: rangeEnd }))}</p>
+        </div>
+      </div>
+      <div class="dash-grid">
+        ${dashCard(t("dashboardPeople"), t("people", { n: week.people || 0 }), `${t("dashboardRegistered")} ${week.registered || 0} · ${t("dashboardGuests")} ${week.guests || 0}`)}
+        ${dashCard(t("dashboardVisits"), week.visits || 0)}
+        ${dashCard(t("dashboardDwell"), formatDwell(week.dwellSeconds))}
+        ${dashCard(t("dashboardAvgPerson"), formatDwell(week.avgDwellSeconds))}
+        ${dashCard(t("dashboardAvgVisit"), formatDwell(week.avgVisitSeconds))}
+      </div>
+      <h3 class="subhead">${escapeHtml(t("dashboardDaily"))}</h3>
       ${days.length ? `<div class="dash-chart" style="--cols:${Math.max(7, days.length)}">${bars}</div>` : `<p class="hint">${t("dashboardEmpty")}</p>`}
       <div class="dash-table-wrap">
         <table class="dash-table">
@@ -1238,42 +1313,26 @@ function renderDashboard() {
           </tbody>
         </table>
       </div>
+      <h3 class="subhead">${escapeHtml(t("dashboardBoardPeriod"))}</h3>
+      <div class="dash-grid compact">
+        ${dashCard(t("dashboardPosts"), periodBoard.posts || 0)}
+        ${dashCard(t("noticeChip"), periodBoard.notices || 0)}
+        ${dashCard(t("shareChip"), periodBoard.shares || 0)}
+        ${dashCard(t("waiting"), periodBoard.open || 0)}
+        ${dashCard(t("done"), periodBoard.done || 0)}
+      </div>
+      ${insightHtml(insights, {
+        insight: t("dashboardInsightPeriod"),
+        progress: t("dashboardProgressPeriod"),
+        empty: t("dashboardNoInsight"),
+      })}
     </section>
-    <section class="dash-panel">
-      <h2 class="subhead">${escapeHtml(t("dashboardInsight"))}</h2>
-      ${
-        Number(insights.posts) > 0
-          ? `<div class="sentiment">
-              <div class="viz-row">
-                ${vizTile(t("dashboardPositive"), sentiment.positive || 0, sentimentTotal, "pos")}
-                ${vizTile(t("dashboardNegative"), sentiment.negative || 0, sentimentTotal, "neg")}
-                ${vizTile(t("dashboardRequest"), sentiment.request || 0, sentimentTotal, "req")}
-                ${vizTile(t("dashboardNeutral"), neutralCount, sentimentTotal, "neu")}
-              </div>
-              <div class="sentiment-samples">
-                ${sentiment.positive ? `<div><p class="dash-label">${t("dashboardPositive")}</p>${sampleList(samples.positive)}</div>` : ""}
-                ${sentiment.negative ? `<div><p class="dash-label">${t("dashboardNegative")}</p>${sampleList(samples.negative)}</div>` : ""}
-                ${sentiment.request ? `<div><p class="dash-label">${t("dashboardRequest")}</p>${sampleList(samples.request)}</div>` : ""}
-              </div>
-              <h3 class="subhead">${escapeHtml(t("dashboardProgress"))}</h3>
-              <div class="sentiment-bar progress-bar" aria-hidden="true">
-                <span class="wait" style="width:${progressTotal ? Math.round((progressOpen / progressTotal) * 100) : 0}%"></span>
-                <span class="done" style="width:${progressTotal ? Math.round((progressDone / progressTotal) * 100) : 0}%"></span>
-              </div>
-              <div class="viz-row">
-                ${vizTile(t("waiting"), progressOpen, progressTotal, "wait")}
-                ${vizTile(t("done"), progressDone, progressTotal, "ok")}
-              </div>
-              <h3 class="subhead">${escapeHtml(t("dashboardKeywords"))}</h3>
-              <div class="keyword-list">
-                ${keywordCloud(keywordList)}
-              </div>
-            </div>`
-          : `<p class="hint">${t("dashboardNoInsight")}</p>`
-      }
-    </section>
-    <section class="dash-panel">
-      <h2 class="subhead">${escapeHtml(t("dashboardBoard"))}</h2>
+    <section class="dash-panel scope-all">
+      <div class="scope-head">
+        <span class="scope-chip all">${escapeHtml(t("dashboardScopeAll"))}</span>
+        <p class="hint">${escapeHtml(t("dashboardAllHint"))}</p>
+      </div>
+      <h3 class="subhead">${escapeHtml(t("dashboardBoardAll"))}</h3>
       <div class="dash-grid compact">
         ${dashCard(t("dashboardPosts"), board.posts || 0)}
         ${dashCard(t("noticeChip"), board.notices || 0)}
@@ -1284,6 +1343,11 @@ function renderDashboard() {
         ${dashCard(t("dashboardVotes"), board.votes || 0)}
         ${dashCard(t("dashboardUsers"), board.users || 0)}
       </div>
+      ${insightHtml(insightsAll, {
+        insight: t("dashboardInsightAll"),
+        progress: t("dashboardProgressAll"),
+        empty: t("dashboardNoInsightAll"),
+      })}
     </section>
   `;
 }

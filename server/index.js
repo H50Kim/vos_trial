@@ -493,6 +493,20 @@ function buildAdminDashboard(query) {
     const key = seoulDayKey(item.createdAt);
     return key && key >= range.start && key <= range.end;
   });
+  const periodBoard = {
+    posts: periodOpinions.length,
+    notices: 0,
+    shares: 0,
+    open: 0,
+    done: 0,
+  };
+  for (const item of periodOpinions) {
+    const kind = kindOf(item);
+    if (kind === "notice") periodBoard.notices += 1;
+    else if (kind === "share") periodBoard.shares += 1;
+    else if (statusOf(item) === "done") periodBoard.done += 1;
+    else periodBoard.open += 1;
+  }
   const period = {
     people: weekPeople.size,
     registered: weekRegistered.size,
@@ -516,7 +530,9 @@ function buildAdminDashboard(query) {
     period,
     days,
     board,
+    periodBoard,
     insights: summarizeContent(periodOpinions),
+    insightsAll: summarizeContent(opinions),
   };
 }
 

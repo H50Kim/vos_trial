@@ -706,6 +706,28 @@ label, legend { display: grid; gap: 8px; font-weight: 700; font-size: 14px; }
   border-radius: 12px;
   padding: 16px;
 }
+.scope-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.scope-head .hint { margin: 4px 0 0; }
+.scope-head .subhead { margin: 0; }
+.scope-chip {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.scope-chip.now { background: #111; color: #ffcc00; }
+.scope-chip.period { background: #111; color: #fff; }
+.scope-chip.all { background: #e8eaee; color: #111; }
+.dash-panel.scope-period { box-shadow: inset 4px 0 0 #111; }
+.dash-panel.scope-all { box-shadow: inset 4px 0 0 #c5c7cc; }
+.dash-panel.scope-now { box-shadow: inset 4px 0 0 #ffcc00; }
 .dash-chart {
   display: grid;
   grid-template-columns: repeat(var(--cols, 7), minmax(28px, 1fr));
