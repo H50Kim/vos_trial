@@ -94,6 +94,7 @@ const I18N = {
     dashboardNeutral: "중립",
     dashboardKeywords: "키워드 요약",
     dashboardNoInsight: "이 기간에 요약할 게시글이 없습니다.",
+    dashboardProgress: "대기·완료 비율",
     dashboardPosts: "게시글",
     dashboardComments: "댓글",
     dashboardVotes: "추천",
@@ -235,6 +236,7 @@ const I18N = {
     dashboardNeutral: "Neutral",
     dashboardKeywords: "Keyword summary",
     dashboardNoInsight: "No posts in this range to summarize.",
+    dashboardProgress: "Open vs done",
     dashboardPosts: "Posts",
     dashboardComments: "Comments",
     dashboardVotes: "Likes",
@@ -1055,9 +1057,57 @@ function formatDwell(seconds) {
   return t("durationSeconds", { s });
 }
 
+function sampleRecord(item) {
+  if (item && typeof item === "object" && !Array.isArray(item)) {
+    return { title: String(item.title || ""), titleEn: String(item.titleEn || "") };
+  }
+  const title = String(item || "");
+  const match = state.items.find((row) => titleOf(row) === title);
+  return { title, titleEn: match ? titleEnOf(match) : "" };
+}
+
 function sampleList(items) {
   if (!Array.isArray(items) || !items.length) return "";
-  return `<ul class="dash-samples">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+  return `<ul class="dash-samples">${items
+    .map((item) => {
+      const sample = sampleRecord(item);
+      const ko = sample.title;
+      const en = englishOf(ko, sample.titleEn);
+      if (state.lang === "en" && en) {
+        return `<li>${escapeHtml(en)}${ko ? `<span class="i18n-en"><span class="lang-tag">KO</span>${escapeHtml(ko)}</span>` : ""}</li>`;
+      }
+      return `<li>${escapeHtml(ko)}${en ? `<span class="i18n-en"><span class="lang-tag">EN</span>${escapeHtml(en)}</span>` : ""}</li>`;
+    })
+    .join("")}</ul>`;
+}
+
+function vizTile(label, count, total, tone) {
+  const n = Math.max(0, Number(count) || 0);
+  const all = Math.max(0, Number(total) || 0);
+  const share = all ? n / all : 0;
+  const flex = n === 0 ? 0.12 : Math.max(0.14, share);
+  const font = 18 + Math.round(share * 30);
+  const pct = all ? Math.round(share * 100) : 0;
+  return `<article class="viz-tile ${tone}" style="flex:${flex} 1 0">
+    <p class="dash-label">${escapeHtml(label)}</p>
+    <p class="viz-value" style="font-size:${font}px">${n}</p>
+    <p class="dash-sub">${pct}%</p>
+  </article>`;
+}
+
+function keywordCloud(items) {
+  if (!Array.isArray(items) || !items.length) return `<p class="hint">${t("dashboardNoInsight")}</p>`;
+  const max = Math.max(1, ...items.map((item) => Number(item.count) || 0));
+  return items
+    .map((item) => {
+      const count = Number(item.count) || 0;
+      const ratio = count / max;
+      const size = 13 + Math.round(ratio * 18);
+      const padY = 6 + Math.round(ratio * 10);
+      const padX = 10 + Math.round(ratio * 16);
+      return `<span class="keyword" style="font-size:${size}px;padding:${padY}px ${padX}px" title="${escapeHtml(`${item.term} ${count}`)}">${escapeHtml(item.term)}</span>`;
+    })
+    .join("");
 }
 
 function dashCard(label, value, sub = "") {
@@ -1139,8 +1189,23 @@ function renderDashboard() {
   const board = data.board || {};
   const insights = data.insights || {};
   const sentiment = insights.sentiment || {};
-  const keywords = Array.isArray(insights.keywords) ? insights.keywords : [];
+  const keywordList =
+    state.lang === "en" && Array.isArray(insights.keywordsEn) && insights.keywordsEn.length
+      ? insights.keywordsEn
+      : Array.isArray(insights.keywords)
+        ? insights.keywords
+        : [];
   const samples = insights.samples || {};
+  const progress = insights.progress || {};
+  const hasProgress = progress.open != null || progress.done != null;
+  const progressOpen = hasProgress ? Number(progress.open) || 0 : Number(board.open) || 0;
+  const progressDone = hasProgress ? Number(progress.done) || 0 : Number(board.done) || 0;
+  const progressTotal = progressOpen + progressDone;
+  const sentimentTotal = Math.max(
+    1,
+    (sentiment.positive || 0) + (sentiment.negative || 0) + (sentiment.request || 0) + (sentiment.neutral || 0) + (sentiment.mixed || 0),
+  );
+  const neutralCount = (sentiment.neutral || 0) + (sentiment.mixed || 0);
   const maxVisits = Math.max(1, ...days.map((day) => Number(day.visits) || 0));
   const longRange = days.length > 10;
   const bars = days
@@ -1179,28 +1244,29 @@ function renderDashboard() {
       ${
         Number(insights.posts) > 0
           ? `<div class="sentiment">
-              <div class="sentiment-bar" aria-hidden="true">
-                <span class="pos" style="width:${Number(insights.positiveShare) || 0}%"></span>
-                <span class="neg" style="width:${Number(insights.negativeShare) || 0}%"></span>
-              </div>
-              <div class="dash-grid compact">
-                ${dashCard(t("dashboardPositive"), `${sentiment.positive || 0}`, `${insights.positiveShare || 0}%`)}
-                ${dashCard(t("dashboardNegative"), `${sentiment.negative || 0}`, `${t("dashboardRequest")} ${sentiment.request || 0}`)}
-                ${dashCard(t("dashboardRequest"), `${sentiment.request || 0}`)}
-                ${dashCard(t("dashboardNeutral"), `${(sentiment.neutral || 0) + (sentiment.mixed || 0)}`)}
+              <div class="viz-row">
+                ${vizTile(t("dashboardPositive"), sentiment.positive || 0, sentimentTotal, "pos")}
+                ${vizTile(t("dashboardNegative"), sentiment.negative || 0, sentimentTotal, "neg")}
+                ${vizTile(t("dashboardRequest"), sentiment.request || 0, sentimentTotal, "req")}
+                ${vizTile(t("dashboardNeutral"), neutralCount, sentimentTotal, "neu")}
               </div>
               <div class="sentiment-samples">
                 ${sentiment.positive ? `<div><p class="dash-label">${t("dashboardPositive")}</p>${sampleList(samples.positive)}</div>` : ""}
                 ${sentiment.negative ? `<div><p class="dash-label">${t("dashboardNegative")}</p>${sampleList(samples.negative)}</div>` : ""}
                 ${sentiment.request ? `<div><p class="dash-label">${t("dashboardRequest")}</p>${sampleList(samples.request)}</div>` : ""}
               </div>
+              <h3 class="subhead">${escapeHtml(t("dashboardProgress"))}</h3>
+              <div class="sentiment-bar progress-bar" aria-hidden="true">
+                <span class="wait" style="width:${progressTotal ? Math.round((progressOpen / progressTotal) * 100) : 0}%"></span>
+                <span class="done" style="width:${progressTotal ? Math.round((progressDone / progressTotal) * 100) : 0}%"></span>
+              </div>
+              <div class="viz-row">
+                ${vizTile(t("waiting"), progressOpen, progressTotal, "wait")}
+                ${vizTile(t("done"), progressDone, progressTotal, "ok")}
+              </div>
               <h3 class="subhead">${escapeHtml(t("dashboardKeywords"))}</h3>
               <div class="keyword-list">
-                ${
-                  keywords.length
-                    ? keywords.map((item) => `<span class="keyword">${escapeHtml(item.term)} <em>${Number(item.count) || 0}</em></span>`).join("")
-                    : `<p class="hint">${t("dashboardNoInsight")}</p>`
-                }
+                ${keywordCloud(keywordList)}
               </div>
             </div>`
           : `<p class="hint">${t("dashboardNoInsight")}</p>`

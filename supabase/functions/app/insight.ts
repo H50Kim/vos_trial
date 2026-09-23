@@ -95,6 +95,10 @@ const STOP = new Set([
   "기본",
   "연동",
   "의견입니다",
+  "도구입니다",
+  "설문이란",
+  "있을까요",
+  "완료할",
   "this",
   "that",
   "with",
@@ -107,6 +111,13 @@ const STOP = new Set([
   "check",
   "test",
   "form",
+  "able",
+  "after",
+  "before",
+  "basic",
+  "also",
+  "into",
+  "access",
 ]);
 
 const PHRASES = [
@@ -156,6 +167,43 @@ function titleOf(item: Record<string, unknown>) {
     .slice(0, 80);
 }
 
+function titleEnOf(item: Record<string, unknown>) {
+  return String(item?.askEn || "")
+    .split("\n")[0]
+    .trim()
+    .slice(0, 80);
+}
+
+function bodyOf(item: Record<string, unknown>) {
+  return `${item?.ask || ""}\n${item?.others || ""}`;
+}
+
+function bodyEnOf(item: Record<string, unknown>) {
+  return `${item?.askEn || ""}\n${item?.othersEn || ""}`;
+}
+
+function insightKind(item: Record<string, unknown>) {
+  const kind = String(item?.kind || "");
+  if (kind === "notice" || item?.kindLabel === "공지" || item?.kindLabel === "공지사항") return "notice";
+  if (kind === "share" || item?.kindLabel === "공유") return "share";
+  return "proposal";
+}
+
+function insightStatus(item: Record<string, unknown>) {
+  if (insightKind(item) !== "proposal") return "none";
+  return item?.status === "done" || item?.statusLabel === "완료" ? "done" : "open";
+}
+
+type Sample = { title: string; titleEn: string };
+
+function rankedKeywords(counts: Map<string, number>) {
+  return [...counts.entries()]
+    .filter(([term]) => !STOP.has(term))
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
+    .slice(0, 12)
+    .map(([term, count]) => ({ term, count }));
+}
+
 function extractKeywords(text: string) {
   const src = String(text || "").toLowerCase();
   const counts = new Map<string, number>();
@@ -178,33 +226,51 @@ function extractKeywords(text: string) {
 export function summarizeContent(opinions: Array<Record<string, unknown>> = []) {
   const posts = Array.isArray(opinions) ? opinions : [];
   const sentiment = { positive: 0, negative: 0, mixed: 0, request: 0, neutral: 0, total: posts.length };
-  const samples: Record<string, string[]> = { positive: [], negative: [], mixed: [], request: [], neutral: [] };
+  const samples: Record<string, Sample[]> = { positive: [], negative: [], mixed: [], request: [], neutral: [] };
   const keywordCounts = new Map<string, number>();
+  const keywordCountsEn = new Map<string, number>();
+  const progress = { open: 0, done: 0 };
 
   for (const item of posts) {
     const title = titleOf(item);
-    const text = `${item?.ask || ""}\n${item?.others || ""}`;
+    const titleEn = titleEnOf(item);
+    const text = bodyOf(item);
+    const textEn = bodyEnOf(item);
     const result = classifyText(text);
     const label = result.label as keyof typeof sentiment;
     sentiment[label] += 1;
-    if (samples[result.label].length < 3 && title) samples[result.label].push(title);
+    if (samples[result.label].length < 3 && title) {
+      samples[result.label].push({ title, titleEn: titleEn && titleEn !== title ? titleEn : "" });
+    }
     for (const [term, count] of extractKeywords(`${title}\n${text}`)) {
       keywordCounts.set(term, (keywordCounts.get(term) || 0) + count);
     }
+    if (textEn.trim()) {
+      for (const [term, count] of extractKeywords(`${titleEn}\n${textEn}`)) {
+        keywordCountsEn.set(term, (keywordCountsEn.get(term) || 0) + count);
+      }
+    }
+    const status = insightStatus(item);
+    if (status === "open") progress.open += 1;
+    if (status === "done") progress.done += 1;
   }
 
-  const keywords = [...keywordCounts.entries()]
-    .filter(([term]) => !STOP.has(term))
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"))
-    .slice(0, 12)
-    .map(([term, count]) => ({ term, count }));
-
+  const keywords = rankedKeywords(keywordCounts);
+  const keywordsEn = rankedKeywords(keywordCountsEn);
+  const proposalTotal = Math.max(1, progress.open + progress.done);
   return {
     posts: posts.length,
     sentiment,
     positiveShare: Math.round((sentiment.positive / Math.max(1, posts.length)) * 100),
     negativeShare: Math.round(((sentiment.negative + sentiment.request) / Math.max(1, posts.length)) * 100),
     keywords,
+    keywordsEn,
     samples,
+    progress: {
+      ...progress,
+      total: progress.open + progress.done,
+      openShare: Math.round((progress.open / proposalTotal) * 100),
+      doneShare: Math.round((progress.done / proposalTotal) * 100),
+    },
   };
 }
