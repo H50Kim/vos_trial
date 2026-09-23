@@ -3,6 +3,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { createStore, type VocDb } from "./store.ts";
 import { bilingualFields, bilingualText, needsCommentTranslation, needsTranslation } from "./translate.ts";
+import { summarizeContent } from "./insight.ts";
 
 const SEED_JSON = "{\"users\":[],\"opinions\":[],\"votes\":[],\"comments\":[],\"ratings\":[],\"nextNumber\":1}";
 
@@ -460,6 +461,7 @@ function buildAdminDashboard() {
     },
     days: publicDays,
     board,
+    insights: summarizeContent(opinions),
   };
 }
 

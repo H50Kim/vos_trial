@@ -696,6 +696,32 @@ body.is-admin .bottom-nav {
 }
 .dash-table th { color: var(--muted); font-size: 12px; }
 
+.sentiment-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #eceef2;
+  margin: 0 0 12px;
+}
+.sentiment-bar .pos { background: #1f8a4c; }
+.sentiment-bar .neg { background: #d11a2a; }
+.sentiment-samples {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+.dash-samples { margin: 6px 0 0; padding-left: 18px; color: var(--ink); font-size: 13px; line-height: 1.45; }
+.keyword-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.keyword {
+  background: #f4f5f7;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.keyword em { color: var(--muted); font-style: normal; }
+
 @media (min-width: 720px) {
   :root { --shell: 720px; }
   html, body { background: var(--page); }

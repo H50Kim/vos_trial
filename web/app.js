@@ -79,6 +79,15 @@ const I18N = {
     hiddenAvgVisit: "방문당 평균 체류",
     hiddenDaily: "일별 접속",
     hiddenBoard: "게시판 현황",
+    hiddenInsight: "게시글 감성·키워드",
+    hiddenSentiment: "감성 요약",
+    hiddenPositive: "긍정",
+    hiddenNegative: "부정",
+    hiddenRequest: "개선 요청",
+    hiddenMixed: "혼합",
+    hiddenNeutral: "중립",
+    hiddenKeywords: "키워드 요약",
+    hiddenNoInsight: "요약할 게시글이 없습니다.",
     hiddenPosts: "게시글",
     hiddenComments: "댓글",
     hiddenVotes: "추천",
@@ -205,6 +214,15 @@ const I18N = {
     hiddenAvgVisit: "Avg. dwell / visit",
     hiddenDaily: "Daily access",
     hiddenBoard: "Board snapshot",
+    hiddenInsight: "Post sentiment & keywords",
+    hiddenSentiment: "Sentiment",
+    hiddenPositive: "Positive",
+    hiddenNegative: "Negative",
+    hiddenRequest: "Requests",
+    hiddenMixed: "Mixed",
+    hiddenNeutral: "Neutral",
+    hiddenKeywords: "Keyword summary",
+    hiddenNoInsight: "No posts to summarize.",
     hiddenPosts: "Posts",
     hiddenComments: "Comments",
     hiddenVotes: "Likes",
@@ -1023,6 +1041,11 @@ function formatDwell(seconds) {
   return t("durationSeconds", { s });
 }
 
+function sampleList(items) {
+  if (!Array.isArray(items) || !items.length) return "";
+  return `<ul class="dash-samples">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
 function dashCard(label, value, sub = "") {
   return `<article class="dash-card"><p class="dash-label">${escapeHtml(label)}</p><p class="dash-value">${escapeHtml(String(value))}</p>${sub ? `<p class="dash-sub">${escapeHtml(sub)}</p>` : ""}</article>`;
 }
@@ -1045,6 +1068,10 @@ function renderDashboard() {
   const week = data.week || {};
   const days = Array.isArray(data.days) ? data.days : [];
   const board = data.board || {};
+  const insights = data.insights || {};
+  const sentiment = insights.sentiment || {};
+  const keywords = Array.isArray(insights.keywords) ? insights.keywords : [];
+  const samples = insights.samples || {};
   const maxVisits = Math.max(1, ...days.map((day) => Number(day.visits) || 0));
   const bars = days
     .map((day) => {
@@ -1075,6 +1102,38 @@ function renderDashboard() {
           </tbody>
         </table>
       </div>
+    </section>
+    <section class="dash-panel">
+      <h2 class="subhead">${escapeHtml(t("hiddenInsight"))}</h2>
+      ${
+        Number(insights.posts) > 0
+          ? `<div class="sentiment">
+              <div class="sentiment-bar" aria-hidden="true">
+                <span class="pos" style="width:${Number(insights.positiveShare) || 0}%"></span>
+                <span class="neg" style="width:${Number(insights.negativeShare) || 0}%"></span>
+              </div>
+              <div class="dash-grid compact">
+                ${dashCard(t("hiddenPositive"), `${sentiment.positive || 0}`, `${insights.positiveShare || 0}%`)}
+                ${dashCard(t("hiddenNegative"), `${sentiment.negative || 0}`, `${t("hiddenRequest")} ${sentiment.request || 0}`)}
+                ${dashCard(t("hiddenRequest"), `${sentiment.request || 0}`)}
+                ${dashCard(t("hiddenNeutral"), `${(sentiment.neutral || 0) + (sentiment.mixed || 0)}`)}
+              </div>
+              <div class="sentiment-samples">
+                ${sentiment.positive ? `<div><p class="dash-label">${t("hiddenPositive")}</p>${sampleList(samples.positive)}</div>` : ""}
+                ${sentiment.negative ? `<div><p class="dash-label">${t("hiddenNegative")}</p>${sampleList(samples.negative)}</div>` : ""}
+                ${sentiment.request ? `<div><p class="dash-label">${t("hiddenRequest")}</p>${sampleList(samples.request)}</div>` : ""}
+              </div>
+              <h3 class="subhead">${escapeHtml(t("hiddenKeywords"))}</h3>
+              <div class="keyword-list">
+                ${
+                  keywords.length
+                    ? keywords.map((item) => `<span class="keyword">${escapeHtml(item.term)} <em>${Number(item.count) || 0}</em></span>`).join("")
+                    : `<p class="hint">${t("hiddenNoInsight")}</p>`
+                }
+              </div>
+            </div>`
+          : `<p class="hint">${t("hiddenNoInsight")}</p>`
+      }
     </section>
     <section class="dash-panel">
       <h2 class="subhead">${escapeHtml(t("hiddenBoard"))}</h2>

@@ -6,6 +6,7 @@ import express from "express";
 import { GOOGLE_FORM_EDIT_URL, submitToGoogleForm } from "./googleForm.js";
 import { createStore } from "./store.js";
 import { bilingualFields, bilingualText, needsCommentTranslation, needsTranslation } from "./translate.js";
+import { summarizeContent } from "./insight.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -455,6 +456,7 @@ function buildAdminDashboard() {
     },
     days,
     board,
+    insights: summarizeContent(opinions),
   };
 }
 

@@ -90,7 +90,7 @@ Pages에서 연 화면은 **로컬 API를 쓰지 않습니다.** 브라우저가
 4. 공지는 **전체** 목록 맨 위에 고정됩니다. 목록에서는 본문이 약 80자로 축약되고 **자세히 보기**로 상세에 들어갑니다.
 5. 제안글 상세에서 관리자는 대기/완료를 바꿀 수 있습니다.
 6. 헤더 **EN** 버튼은 메뉴·안내 문구만 바꿉니다. 작성된 한글 본문은 번역하지 않고, 게시 시 서버가 영문을 **추가로** 붙입니다.
-7. **Hidden** 메뉴는 관리자 로그인 후에만 헤더/하단 내비게이션과 내 정보에 나타납니다. 최근 7일(KST) 접속 인원, 방문 횟수, 체류시간, 현재 접속, 게시판 현황을 보여 줍니다. 이메일은 표시하지 않습니다.
+7. **Hidden** 메뉴는 관리자 로그인 후에만 헤더/하단 내비게이션과 내 정보에 나타납니다. 최근 7일(KST) 접속 인원, 방문 횟수, 체류시간, 현재 접속, 게시글 감성(긍정/부정/개선 요청)과 키워드, 게시판 현황을 보여 줍니다. 이메일은 표시하지 않습니다.
 
 한글이 포함된 글·댓글은 Google Translate(gtx) → MyMemory 순으로 영문을 만들고 `askEn` / `othersEn` / `bodyEn`에 저장합니다. 목록·상세에서 한글 아래 영문이 같이 보입니다.
 
@@ -274,7 +274,7 @@ Edge는 정적 파일 요청 시 GitHub Pages(`PAGES_ORIGIN`)에서 `index.html`
 | POST | `/api/auth`, `/api/auth/request`, `/api/auth/verify` | 없음 | `@gm.com` 등록 후 세션 |
 | POST | `/api/auth/logout` | 없음 | 쿠키 삭제 |
 | GET | `/api/me` | 필요 | `anonId`, `isAdmin` |
-| GET | `/api/admin/dashboard` | 관리자 | Hidden 주간 접속·체류 집계 |
+| GET | `/api/admin/dashboard` | 관리자 | Hidden 주간 접속·체류 집계, 게시글 감성·키워드 |
 | POST | `/api/presence` | 선택 | 화면이 열려 있는 동안 체류시간 기록 |
 | GET | `/api/opinions` | 선택 | 목록. 로그인 시 `mine` / `canManage` |
 | POST | `/api/opinions` | 필요 | 작성. 공지는 관리자만 |
