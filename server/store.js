@@ -8,6 +8,7 @@ const emptyDb = () => ({
   votes: [],
   comments: [],
   ratings: [],
+  visits: [],
   nextNumber: 1,
 });
 
@@ -26,6 +27,7 @@ export function createStore(filePath) {
         votes: Array.isArray(parsed.votes) ? parsed.votes : [],
         comments: Array.isArray(parsed.comments) ? parsed.comments : [],
         ratings: Array.isArray(parsed.ratings) ? parsed.ratings : [],
+        visits: Array.isArray(parsed.visits) ? parsed.visits : [],
         nextNumber: Number(parsed.nextNumber) > 0 ? Number(parsed.nextNumber) : 1,
       };
       assignMissingNumbers();
@@ -334,6 +336,67 @@ export function createStore(filePath) {
       db.votes.push(vote);
       await persist();
       return vote;
+    },
+    countUsers() {
+      return db.users.length;
+    },
+    countComments() {
+      return db.comments.length;
+    },
+    countVotesAll() {
+      return db.votes.length;
+    },
+    listUsers() {
+      return [...db.users];
+    },
+    listAllComments() {
+      return [...db.comments];
+    },
+    listAllVotes() {
+      return [...db.votes];
+    },
+    listAllRatings() {
+      return [...db.ratings];
+    },
+    listVisits() {
+      if (!Array.isArray(db.visits)) db.visits = [];
+      return db.visits;
+    },
+    async touchVisit({ sessionId, visitorId, userId = "" }) {
+      if (!Array.isArray(db.visits)) db.visits = [];
+      const now = Date.now();
+      const nowIso = new Date(now).toISOString();
+      const gapMs = 30 * 60 * 1000;
+      const maxTick = 90;
+      const cutoff = now - 90 * 24 * 60 * 60 * 1000;
+      db.visits = db.visits.filter((visit) => new Date(visit.lastSeenAt || visit.startedAt || 0).getTime() >= cutoff);
+      let visit = db.visits.find((item) => item.id === sessionId);
+      if (visit) {
+        const last = new Date(visit.lastSeenAt || visit.startedAt || nowIso).getTime();
+        const elapsed = Math.floor((now - last) / 1000);
+        if (elapsed > 0 && elapsed <= maxTick && now - last < gapMs) {
+          visit.seconds = Number(visit.seconds || 0) + elapsed;
+        } else if (now - last >= gapMs) {
+          visit.startedAt = nowIso;
+          visit.seconds = 0;
+        }
+        visit.lastSeenAt = nowIso;
+        if (visitorId) visit.visitorId = visitorId;
+        if (userId) visit.userId = userId;
+      } else {
+        visit = {
+          id: sessionId,
+          visitorId,
+          userId: userId || "",
+          startedAt: nowIso,
+          lastSeenAt: nowIso,
+          seconds: 0,
+        };
+        db.visits.push(visit);
+      }
+      if (db.visits.length > 20000) db.visits = db.visits.slice(-20000);
+      await persist();
+      return visit;
     },
   };
 }

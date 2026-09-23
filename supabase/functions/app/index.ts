@@ -260,6 +260,209 @@ function publicOpinion(opinion: Record<string, unknown>, currentUserId: string, 
   };
 }
 
+function seoulDayKey(value: Date | string | number = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const pick = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
+
+function addSeoulDays(key: string, delta: number) {
+  const stamp = Date.parse(`${key}T12:00:00+09:00`);
+  if (!Number.isFinite(stamp)) return key;
+  return seoulDayKey(new Date(stamp + delta * 86400000));
+}
+
+function seoulWeekday(key: string) {
+  const stamp = Date.parse(`${key}T12:00:00+09:00`);
+  if (!Number.isFinite(stamp)) return 0;
+  return new Date(stamp).getUTCDay();
+}
+
+function sanitizeId(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!/^[A-Za-z0-9_-]{8,80}$/.test(raw)) return "";
+  return raw;
+}
+
+function visitOverlapsDay(visit: Record<string, unknown>, dayKey: string) {
+  const startKey = seoulDayKey(String(visit.startedAt || ""));
+  const endKey = seoulDayKey(String(visit.lastSeenAt || visit.startedAt || ""));
+  if (!startKey || !endKey) return false;
+  return startKey <= dayKey && dayKey <= endKey;
+}
+
+function pushActivity(
+  events: Array<{ userId: string; at: number; day: string; kind: string }>,
+  userId: unknown,
+  ts: unknown,
+  kind: string,
+) {
+  const at = new Date(String(ts || 0)).getTime();
+  if (!userId || !Number.isFinite(at) || at <= 0) return;
+  events.push({ userId: String(userId), at, day: seoulDayKey(at), kind });
+}
+
+function activityEvents() {
+  const events: Array<{ userId: string; at: number; day: string; kind: string }> = [];
+  for (const user of store.listUsers()) pushActivity(events, user.id, user.createdAt, "signup");
+  for (const item of store.listOpinions()) {
+    pushActivity(events, item.userId, item.createdAt, "post");
+    if (item.updatedAt && item.updatedAt !== item.createdAt) {
+      pushActivity(events, item.userId, item.updatedAt, "edit");
+    }
+  }
+  for (const comment of store.listAllComments()) pushActivity(events, comment.userId, comment.createdAt, "comment");
+  for (const vote of store.listAllVotes()) pushActivity(events, vote.userId, vote.createdAt, "vote");
+  for (const rating of store.listAllRatings()) {
+    pushActivity(events, rating.userId, rating.updatedAt || rating.createdAt, "rating");
+  }
+  return events;
+}
+
+type DashDay = {
+  key: string;
+  weekday: number;
+  people: number;
+  visits: number;
+  dwellSeconds: number;
+  actions: number;
+  _people: Set<string>;
+  _presenceUserIds: Set<string>;
+  _activityTimes: Map<string, number[]>;
+};
+
+function emptyDay(key: string): DashDay {
+  return {
+    key,
+    weekday: seoulWeekday(key),
+    people: 0,
+    visits: 0,
+    dwellSeconds: 0,
+    actions: 0,
+    _people: new Set(),
+    _presenceUserIds: new Set(),
+    _activityTimes: new Map(),
+  };
+}
+
+function estimatedDwell(times: number[]) {
+  const stamps = [...times].sort((a, b) => a - b);
+  if (!stamps.length) return 0;
+  if (stamps.length === 1) return 60;
+  const span = Math.floor((stamps[stamps.length - 1] - stamps[0]) / 1000) + 60;
+  return Math.min(8 * 3600, Math.max(60, span));
+}
+
+function buildAdminDashboard() {
+  const days: DashDay[] = [];
+  const today = seoulDayKey();
+  for (let i = 6; i >= 0; i -= 1) days.push(emptyDay(addSeoulDays(today, -i)));
+  const byKey = new Map(days.map((day) => [day.key, day]));
+  const weekPeople = new Set<string>();
+  const weekRegistered = new Set<string>();
+  const now = Date.now();
+  const online = new Set<string>();
+
+  for (const visit of store.listVisits()) {
+    const visitor = String(visit.visitorId || visit.userId || visit.id || "");
+    const userId = String(visit.userId || "");
+    const last = new Date(String(visit.lastSeenAt || visit.startedAt || 0)).getTime();
+    if ((userId || visitor) && Number.isFinite(last) && now - last <= 3 * 60 * 1000) {
+      online.add(userId || visitor);
+    }
+    const startKey = seoulDayKey(String(visit.startedAt || ""));
+    for (const day of days) {
+      if (!visitOverlapsDay(visit, day.key)) continue;
+      const person = userId || visitor;
+      if (person) {
+        day._people.add(person);
+        weekPeople.add(person);
+      }
+      if (userId) {
+        day._presenceUserIds.add(userId);
+        weekRegistered.add(userId);
+      }
+      if (day.key === startKey) {
+        day.visits += 1;
+        day.dwellSeconds += Math.max(0, Number(visit.seconds) || 0);
+      }
+    }
+  }
+
+  for (const event of activityEvents()) {
+    const day = byKey.get(event.day);
+    if (!day) continue;
+    day.actions += 1;
+    day._people.add(event.userId);
+    weekPeople.add(event.userId);
+    weekRegistered.add(event.userId);
+    if (!day._activityTimes.has(event.userId)) day._activityTimes.set(event.userId, []);
+    day._activityTimes.get(event.userId)!.push(event.at);
+  }
+
+  const publicDays = days.map((day) => {
+    for (const [userId, times] of day._activityTimes) {
+      if (day._presenceUserIds.has(userId)) continue;
+      day.visits += 1;
+      day.dwellSeconds += estimatedDwell(times);
+    }
+    return {
+      key: day.key,
+      weekday: day.weekday,
+      people: day._people.size,
+      visits: day.visits,
+      dwellSeconds: day.dwellSeconds,
+      actions: day.actions,
+    };
+  });
+
+  const dwellSeconds = publicDays.reduce((sum, day) => sum + day.dwellSeconds, 0);
+  const visits = publicDays.reduce((sum, day) => sum + day.visits, 0);
+  const opinions = store.listOpinions();
+  const board = {
+    users: store.countUsers(),
+    posts: opinions.length,
+    comments: store.countComments(),
+    votes: store.countVotesAll(),
+    notices: 0,
+    shares: 0,
+    open: 0,
+    done: 0,
+  };
+  for (const item of opinions) {
+    const kind = kindOf(item);
+    if (kind === "notice") board.notices += 1;
+    else if (kind === "share") board.shares += 1;
+    else if (statusOf(item) === "done") board.done += 1;
+    else board.open += 1;
+  }
+
+  return {
+    timezone: "Asia/Seoul",
+    source: "store+presence",
+    range: { start: publicDays[0].key, end: publicDays[publicDays.length - 1].key },
+    onlinePeople: online.size,
+    week: {
+      people: weekPeople.size,
+      registered: weekRegistered.size,
+      guests: Math.max(0, weekPeople.size - weekRegistered.size),
+      visits,
+      dwellSeconds,
+      avgDwellSeconds: weekPeople.size ? Math.round(dwellSeconds / weekPeople.size) : 0,
+      avgVisitSeconds: visits ? Math.round(dwellSeconds / visits) : 0,
+    },
+    days: publicDays,
+    board,
+  };
+}
+
 async function applyTranslations(opinion: Record<string, unknown> | null) {
   if (!opinion?.id || !needsTranslation(opinion)) return opinion;
   const fields = await bilingualFields(opinion.ask, opinion.others, opinion);
@@ -320,7 +523,7 @@ async function ensureReady() {
       }
       if (secret.length < 32) secret = randomBytes(32).toString("hex");
       store = createStore(payload, persist);
-      await persist(payload ?? { users: [], opinions: [], votes: [], comments: [], ratings: [], nextNumber: 1 });
+      await persist(payload ?? { users: [], opinions: [], votes: [], comments: [], ratings: [], visits: [], nextNumber: 1 });
     })();
   }
   await ready;
@@ -484,6 +687,25 @@ Deno.serve(async (req) => {
         role: isAdmin(auth.email) ? "admin" : "user",
         isAdmin: isAdmin(auth.email),
       });
+    }
+    if (method === "POST" && path === "/api/presence") {
+      const body = await readBody(req);
+      const sessionId = sanitizeId((body as { sessionId?: unknown }).sessionId);
+      const visitorId = sanitizeId((body as { visitorId?: unknown }).visitorId);
+      if (!sessionId || !visitorId) return json({ error: "접속 정보를 확인할 수 없습니다." }, 400);
+      const session = verifyToken(readToken(req));
+      await store.touchVisit({
+        sessionId,
+        visitorId,
+        userId: session?.userId || "",
+      });
+      return json({ ok: true });
+    }
+    if (method === "GET" && path === "/api/admin/dashboard") {
+      const auth = requireUser(req);
+      if (!auth) return json({ error: "이메일 등록 후 입장해 주세요." }, 401);
+      if (!isAdmin(auth.email)) return json({ error: "관리자만 볼 수 있습니다." }, 403);
+      return json(buildAdminDashboard());
     }
     if (method === "GET" && path === "/api/opinions") {
       const session = verifyToken(readToken(req));

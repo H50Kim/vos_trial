@@ -17,6 +17,8 @@ const state = {
   saving: false,
   editingCommentId: "",
   items: [],
+  dashboard: null,
+  dashboardError: "",
 };
 
 const els = {
@@ -29,6 +31,9 @@ const els = {
   viewDetail: document.querySelector("#view-detail"),
   viewWrite: document.querySelector("#view-write"),
   viewMe: document.querySelector("#view-me"),
+  viewHidden: document.querySelector("#view-hidden"),
+  hiddenDashboard: document.querySelector("#hidden-dashboard"),
+  hiddenBtn: document.querySelector("#hidden-btn"),
   gate: document.querySelector("#gate"),
   meCard: document.querySelector("#me-card"),
   identity: document.querySelector("#me-card"),
@@ -60,6 +65,37 @@ const I18N = {
     home: "홈",
     write: "글쓰기",
     me: "내 정보",
+    hidden: "Hidden",
+    hiddenDashboard: "Hidden 대시보드",
+    hiddenHint: "관리자만 볼 수 있는 주간 접속 현황입니다. 가입·게시·댓글·추천 기록과 실시간 체류를 함께 집계하며, 이메일은 표시하지 않습니다.",
+    hiddenRange: "최근 7일 · {start} ~ {end} (KST)",
+    hiddenOnline: "현재 접속",
+    hiddenPeople: "주간 접속 인원",
+    hiddenRegistered: "등록 이용자",
+    hiddenGuests: "미등록 방문",
+    hiddenVisits: "방문 횟수",
+    hiddenDwell: "총 체류시간",
+    hiddenAvgPerson: "인당 평균 체류",
+    hiddenAvgVisit: "방문당 평균 체류",
+    hiddenDaily: "일별 접속",
+    hiddenBoard: "게시판 현황",
+    hiddenPosts: "게시글",
+    hiddenComments: "댓글",
+    hiddenVotes: "추천",
+    hiddenUsers: "등록 계정",
+    hiddenEmpty: "아직 수집된 접속 기록이 없습니다. 사이트에 머무르면 체류시간이 쌓입니다.",
+    hiddenForbidden: "관리자만 볼 수 있습니다.",
+    hiddenLoading: "접속 현황을 불러오는 중…",
+    durationHours: "{h}시간 {m}분",
+    durationMinutes: "{m}분 {s}초",
+    durationSeconds: "{s}초",
+    weekday0: "일",
+    weekday1: "월",
+    weekday2: "화",
+    weekday3: "수",
+    weekday4: "목",
+    weekday5: "금",
+    weekday6: "토",
     mainMenu: "주요 메뉴",
     mobileMenu: "모바일 메뉴",
     status: "진행 상태",
@@ -155,6 +191,37 @@ const I18N = {
     home: "Home",
     write: "Write",
     me: "Me",
+    hidden: "Hidden",
+    hiddenDashboard: "Hidden dashboard",
+    hiddenHint: "Weekly access for admins only. Counts signups, posts, comments, likes, and live dwell time. Emails are never shown.",
+    hiddenRange: "Last 7 days · {start} – {end} (KST)",
+    hiddenOnline: "Online now",
+    hiddenPeople: "Weekly people",
+    hiddenRegistered: "Registered",
+    hiddenGuests: "Guest visits",
+    hiddenVisits: "Visits",
+    hiddenDwell: "Total dwell time",
+    hiddenAvgPerson: "Avg. dwell / person",
+    hiddenAvgVisit: "Avg. dwell / visit",
+    hiddenDaily: "Daily access",
+    hiddenBoard: "Board snapshot",
+    hiddenPosts: "Posts",
+    hiddenComments: "Comments",
+    hiddenVotes: "Likes",
+    hiddenUsers: "Registered accounts",
+    hiddenEmpty: "No visits recorded yet. Time on the site is counted while the tab stays open.",
+    hiddenForbidden: "Admins only.",
+    hiddenLoading: "Loading access stats…",
+    durationHours: "{h}h {m}m",
+    durationMinutes: "{m}m {s}s",
+    durationSeconds: "{s}s",
+    weekday0: "Sun",
+    weekday1: "Mon",
+    weekday2: "Tue",
+    weekday3: "Wed",
+    weekday4: "Thu",
+    weekday5: "Fri",
+    weekday6: "Sat",
     mainMenu: "Main menu",
     mobileMenu: "Mobile menu",
     status: "Status",
@@ -255,6 +322,7 @@ const ERROR_KEYS = {
   "Priority는 0부터 5 사이여야 합니다.": "priority",
   "상태를 변경할 권한이 없습니다.": "markDone",
   "공지사항은 관리자만 작성할 수 있습니다.": "noticeAdminOnly",
+  "관리자만 볼 수 있습니다.": "hiddenForbidden",
   "이미 이 의견에 투표했습니다. 투표는 한 번만 가능합니다.": "voteOnce",
 };
 
@@ -694,17 +762,28 @@ function visibleItems() {
 }
 
 function setView(view) {
+  if (view === "hidden" && !state.isAdmin) view = "home";
   state.view = view;
   document.body.dataset.view = view;
   els.viewHome.classList.toggle("hidden", view !== "home");
   els.viewDetail.classList.toggle("hidden", view !== "detail");
   els.viewWrite.classList.toggle("hidden", view !== "write");
   els.viewMe.classList.toggle("hidden", view !== "me");
+  if (els.viewHidden) els.viewHidden.classList.toggle("hidden", view !== "hidden");
   els.backBtn.classList.toggle("hidden", view === "home");
   document.querySelectorAll(".nav-btn").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === view || (view === "detail" && button.dataset.view === "home"));
   });
   window.scrollTo(0, 0);
+  if (view === "hidden") void loadDashboard();
+}
+
+function renderAdminNav() {
+  document.body.classList.toggle("is-admin", Boolean(state.isAdmin));
+  document.querySelectorAll(".nav-hidden").forEach((node) => {
+    node.hidden = !state.isAdmin;
+  });
+  if (!state.isAdmin && state.view === "hidden") setView("home");
 }
 
 function renderIdentity() {
@@ -716,6 +795,7 @@ function renderIdentity() {
     els.roleLabel.textContent = state.isAdmin ? t("admin") : t("user");
     els.roleLabel.className = state.isAdmin ? "chip admin" : "chip role";
   }
+  renderAdminNav();
   renderMyActivity();
 }
 
@@ -933,6 +1013,136 @@ function renderDetail() {
   `;
 }
 
+function formatDwell(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h) return t("durationHours", { h, m });
+  if (m) return t("durationMinutes", { m, s });
+  return t("durationSeconds", { s });
+}
+
+function dashCard(label, value, sub = "") {
+  return `<article class="dash-card"><p class="dash-label">${escapeHtml(label)}</p><p class="dash-value">${escapeHtml(String(value))}</p>${sub ? `<p class="dash-sub">${escapeHtml(sub)}</p>` : ""}</article>`;
+}
+
+function renderDashboard() {
+  if (!els.hiddenDashboard) return;
+  if (!state.isAdmin) {
+    els.hiddenDashboard.innerHTML = `<p class="hint">${t("hiddenForbidden")}</p>`;
+    return;
+  }
+  const data = state.dashboard;
+  if (state.dashboardError) {
+    els.hiddenDashboard.innerHTML = `<p class="error">${escapeHtml(tError(state.dashboardError))}</p>`;
+    return;
+  }
+  if (!data) {
+    els.hiddenDashboard.innerHTML = `<p class="hint">${t("hiddenLoading")}</p>`;
+    return;
+  }
+  const week = data.week || {};
+  const days = Array.isArray(data.days) ? data.days : [];
+  const board = data.board || {};
+  const maxVisits = Math.max(1, ...days.map((day) => Number(day.visits) || 0));
+  const bars = days
+    .map((day) => {
+      const visits = Number(day.visits) || 0;
+      const height = Math.max(4, Math.round((visits / maxVisits) * 100));
+      const label = t(`weekday${Number(day.weekday) || 0}`);
+      return `<div class="dash-col"><div class="dash-track"><div class="dash-bar" style="height:${height}%" title="${escapeHtml(`${day.key} · ${visits}`)}"></div></div><span>${escapeHtml(label)}</span><strong>${visits}</strong><em>${escapeHtml(formatDwell(day.dwellSeconds))}</em></div>`;
+    })
+    .join("");
+  els.hiddenDashboard.innerHTML = `
+    <p class="dash-range">${escapeHtml(t("hiddenRange", { start: data.range?.start || "", end: data.range?.end || "" }))}</p>
+    <div class="dash-grid">
+      ${dashCard(t("hiddenOnline"), t("people", { n: data.onlinePeople || 0 }))}
+      ${dashCard(t("hiddenPeople"), t("people", { n: week.people || 0 }), `${t("hiddenRegistered")} ${week.registered || 0} · ${t("hiddenGuests")} ${week.guests || 0}`)}
+      ${dashCard(t("hiddenVisits"), week.visits || 0)}
+      ${dashCard(t("hiddenDwell"), formatDwell(week.dwellSeconds))}
+      ${dashCard(t("hiddenAvgPerson"), formatDwell(week.avgDwellSeconds))}
+      ${dashCard(t("hiddenAvgVisit"), formatDwell(week.avgVisitSeconds))}
+    </div>
+    <section class="dash-panel">
+      <h2 class="subhead">${escapeHtml(t("hiddenDaily"))}</h2>
+      ${days.length ? `<div class="dash-chart">${bars}</div>` : `<p class="hint">${t("hiddenEmpty")}</p>`}
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead><tr><th>${escapeHtml(t("hiddenDaily"))}</th><th>${escapeHtml(t("hiddenPeople"))}</th><th>${escapeHtml(t("hiddenVisits"))}</th><th>${escapeHtml(t("hiddenDwell"))}</th></tr></thead>
+          <tbody>
+            ${days.map((day) => `<tr><td>${escapeHtml(day.key)} (${escapeHtml(t(`weekday${Number(day.weekday) || 0}`))})</td><td>${Number(day.people) || 0}</td><td>${Number(day.visits) || 0}</td><td>${escapeHtml(formatDwell(day.dwellSeconds))}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="dash-panel">
+      <h2 class="subhead">${escapeHtml(t("hiddenBoard"))}</h2>
+      <div class="dash-grid compact">
+        ${dashCard(t("hiddenPosts"), board.posts || 0)}
+        ${dashCard(t("noticeChip"), board.notices || 0)}
+        ${dashCard(t("shareChip"), board.shares || 0)}
+        ${dashCard(t("waiting"), board.open || 0)}
+        ${dashCard(t("done"), board.done || 0)}
+        ${dashCard(t("hiddenComments"), board.comments || 0)}
+        ${dashCard(t("hiddenVotes"), board.votes || 0)}
+        ${dashCard(t("hiddenUsers"), board.users || 0)}
+      </div>
+    </section>
+  `;
+}
+
+async function loadDashboard() {
+  if (!state.isAdmin || !els.hiddenDashboard) return;
+  state.dashboardError = "";
+  renderDashboard();
+  try {
+    state.dashboard = await api("/api/admin/dashboard");
+  } catch (error) {
+    state.dashboard = null;
+    state.dashboardError = error.message || t("requestFailed");
+  }
+  renderDashboard();
+}
+
+function visitorKey() {
+  let id = localStorage.getItem("voc_visitor");
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem("voc_visitor", id);
+  }
+  return id;
+}
+
+function visitKey() {
+  let id = sessionStorage.getItem("voc_visit");
+  if (!id) {
+    id = crypto.randomUUID();
+    sessionStorage.setItem("voc_visit", id);
+  }
+  return id;
+}
+
+async function sendPresence() {
+  if (document.visibilityState && document.visibilityState !== "visible") return;
+  try {
+    await api("/api/presence", {
+      method: "POST",
+      body: JSON.stringify({ visitorId: visitorKey(), sessionId: visitKey() }),
+    });
+  } catch {
+    // Presence is best-effort and must not interrupt the board.
+  }
+}
+
+function startPresence() {
+  sendPresence();
+  window.setInterval(sendPresence, 25000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") sendPresence();
+  });
+}
+
 function renderAll() {
   applyStaticI18n();
   renderStatusTabs();
@@ -940,6 +1150,7 @@ function renderAll() {
   renderComposer();
   renderFeed();
   if (state.view === "detail") renderDetail();
+  if (state.view === "hidden") renderDashboard();
 }
 
 function openDetail(id) {
@@ -986,7 +1197,10 @@ function clearSession() {
   state.role = "";
   state.isAdmin = false;
   state.editingId = "";
+  state.dashboard = null;
+  state.dashboardError = "";
   localStorage.removeItem("voc_token");
+  renderAdminNav();
 }
 
 async function loadOpinions() {
@@ -1032,6 +1246,11 @@ document.querySelectorAll(".nav-btn").forEach((button) => {
       startCreate();
       return;
     }
+    if (view === "hidden") {
+      if (!state.isAdmin) return;
+      setView("hidden");
+      return;
+    }
     setView(view);
   });
 });
@@ -1070,6 +1289,13 @@ if (els.search) {
   els.search.addEventListener("input", () => {
     state.query = els.search.value;
     renderFeed();
+  });
+}
+
+if (els.hiddenBtn) {
+  els.hiddenBtn.addEventListener("click", () => {
+    if (!state.isAdmin) return;
+    setView("hidden");
   });
 }
 
@@ -1324,4 +1550,5 @@ bindBoard(els.feed);
 bindBoard(els.detail);
 if (els.myPostList) bindBoard(els.myPostList);
 if (els.myCommentList) bindBoard(els.myCommentList);
+startPresence();
 restoreSession();

@@ -4,6 +4,7 @@ export type VocDb = {
   votes: Array<Record<string, unknown>>;
   comments: Array<Record<string, unknown>>;
   ratings: Array<Record<string, unknown>>;
+  visits: Array<Record<string, unknown>>;
   nextNumber: number;
 };
 
@@ -13,6 +14,7 @@ const emptyDb = (): VocDb => ({
   votes: [],
   comments: [],
   ratings: [],
+  visits: [],
   nextNumber: 1,
 });
 
@@ -24,6 +26,7 @@ export function createStore(initial: VocDb | null, persist: (db: VocDb) => Promi
         votes: Array.isArray(initial.votes) ? initial.votes : [],
         comments: Array.isArray(initial.comments) ? initial.comments : [],
         ratings: Array.isArray(initial.ratings) ? initial.ratings : [],
+        visits: Array.isArray(initial.visits) ? initial.visits : [],
         nextNumber: Number(initial.nextNumber) > 0 ? Number(initial.nextNumber) : 1,
       }
     : emptyDb();
@@ -313,6 +316,77 @@ export function createStore(initial: VocDb | null, persist: (db: VocDb) => Promi
       db.votes.push(vote);
       await save();
       return vote;
+    },
+    countUsers() {
+      return db.users.length;
+    },
+    countComments() {
+      return db.comments.length;
+    },
+    countVotesAll() {
+      return db.votes.length;
+    },
+    listUsers() {
+      return [...db.users];
+    },
+    listAllComments() {
+      return [...db.comments];
+    },
+    listAllVotes() {
+      return [...db.votes];
+    },
+    listAllRatings() {
+      return [...db.ratings];
+    },
+    listVisits() {
+      if (!Array.isArray(db.visits)) db.visits = [];
+      return db.visits;
+    },
+    async touchVisit({
+      sessionId,
+      visitorId,
+      userId = "",
+    }: {
+      sessionId: string;
+      visitorId: string;
+      userId?: string;
+    }) {
+      if (!Array.isArray(db.visits)) db.visits = [];
+      const now = Date.now();
+      const nowIso = new Date(now).toISOString();
+      const gapMs = 30 * 60 * 1000;
+      const maxTick = 90;
+      const cutoff = now - 90 * 24 * 60 * 60 * 1000;
+      db.visits = db.visits.filter(
+        (visit) => new Date(String(visit.lastSeenAt || visit.startedAt || 0)).getTime() >= cutoff,
+      );
+      let visit = db.visits.find((item) => item.id === sessionId);
+      if (visit) {
+        const last = new Date(String(visit.lastSeenAt || visit.startedAt || nowIso)).getTime();
+        const elapsed = Math.floor((now - last) / 1000);
+        if (elapsed > 0 && elapsed <= maxTick && now - last < gapMs) {
+          visit.seconds = Number(visit.seconds || 0) + elapsed;
+        } else if (now - last >= gapMs) {
+          visit.startedAt = nowIso;
+          visit.seconds = 0;
+        }
+        visit.lastSeenAt = nowIso;
+        if (visitorId) visit.visitorId = visitorId;
+        if (userId) visit.userId = userId;
+      } else {
+        visit = {
+          id: sessionId,
+          visitorId,
+          userId: userId || "",
+          startedAt: nowIso,
+          lastSeenAt: nowIso,
+          seconds: 0,
+        };
+        db.visits.push(visit);
+      }
+      if (db.visits.length > 20000) db.visits = db.visits.slice(-20000);
+      await save();
+      return visit;
     },
   };
 }

@@ -276,6 +276,188 @@ function publicOpinion(opinion, currentUserId, email = "") {
   };
 }
 
+function seoulDayKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const pick = (type) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
+
+function addSeoulDays(key, delta) {
+  const stamp = Date.parse(`${key}T12:00:00+09:00`);
+  if (!Number.isFinite(stamp)) return key;
+  return seoulDayKey(new Date(stamp + delta * 86400000));
+}
+
+function seoulWeekday(key) {
+  const stamp = Date.parse(`${key}T12:00:00+09:00`);
+  if (!Number.isFinite(stamp)) return 0;
+  return new Date(stamp).getUTCDay();
+}
+
+function sanitizeId(value) {
+  const raw = String(value ?? "").trim();
+  if (!/^[A-Za-z0-9_-]{8,80}$/.test(raw)) return "";
+  return raw;
+}
+
+function visitOverlapsDay(visit, dayKey) {
+  const startKey = seoulDayKey(visit.startedAt);
+  const endKey = seoulDayKey(visit.lastSeenAt || visit.startedAt);
+  if (!startKey || !endKey) return false;
+  return startKey <= dayKey && dayKey <= endKey;
+}
+
+function pushActivity(events, userId, ts, kind) {
+  const at = new Date(ts || 0).getTime();
+  if (!userId || !Number.isFinite(at) || at <= 0) return;
+  events.push({ userId: String(userId), at, day: seoulDayKey(at), kind });
+}
+
+function activityEvents() {
+  const events = [];
+  for (const user of store.listUsers()) pushActivity(events, user.id, user.createdAt, "signup");
+  for (const item of store.listOpinions()) {
+    pushActivity(events, item.userId, item.createdAt, "post");
+    if (item.updatedAt && item.updatedAt !== item.createdAt) {
+      pushActivity(events, item.userId, item.updatedAt, "edit");
+    }
+  }
+  for (const comment of store.listAllComments()) pushActivity(events, comment.userId, comment.createdAt, "comment");
+  for (const vote of store.listAllVotes()) pushActivity(events, vote.userId, vote.createdAt, "vote");
+  for (const rating of store.listAllRatings()) {
+    pushActivity(events, rating.userId, rating.updatedAt || rating.createdAt, "rating");
+  }
+  return events;
+}
+
+function emptyDay(key) {
+  return {
+    key,
+    weekday: seoulWeekday(key),
+    people: 0,
+    visits: 0,
+    dwellSeconds: 0,
+    actions: 0,
+    _people: new Set(),
+    _presenceUserIds: new Set(),
+    _activityTimes: new Map(),
+  };
+}
+
+function estimatedDwell(times) {
+  const stamps = [...times].sort((a, b) => a - b);
+  if (!stamps.length) return 0;
+  if (stamps.length === 1) return 60;
+  const span = Math.floor((stamps[stamps.length - 1] - stamps[0]) / 1000) + 60;
+  return Math.min(8 * 3600, Math.max(60, span));
+}
+
+function buildAdminDashboard() {
+  const days = [];
+  const today = seoulDayKey();
+  for (let i = 6; i >= 0; i -= 1) days.push(emptyDay(addSeoulDays(today, -i)));
+  const byKey = new Map(days.map((day) => [day.key, day]));
+  const weekPeople = new Set();
+  const weekRegistered = new Set();
+  const now = Date.now();
+  const online = new Set();
+
+  for (const visit of store.listVisits()) {
+    const visitor = String(visit.visitorId || visit.userId || visit.id || "");
+    const userId = String(visit.userId || "");
+    const last = new Date(visit.lastSeenAt || visit.startedAt || 0).getTime();
+    if ((userId || visitor) && Number.isFinite(last) && now - last <= 3 * 60 * 1000) {
+      online.add(userId || visitor);
+    }
+    const startKey = seoulDayKey(visit.startedAt);
+    for (const day of days) {
+      if (!visitOverlapsDay(visit, day.key)) continue;
+      const person = userId || visitor;
+      if (person) {
+        day._people.add(person);
+        weekPeople.add(person);
+      }
+      if (userId) {
+        day._presenceUserIds.add(userId);
+        weekRegistered.add(userId);
+      }
+      if (day.key === startKey) {
+        day.visits += 1;
+        day.dwellSeconds += Math.max(0, Number(visit.seconds) || 0);
+      }
+    }
+  }
+
+  for (const event of activityEvents()) {
+    const day = byKey.get(event.day);
+    if (!day) continue;
+    day.actions += 1;
+    day._people.add(event.userId);
+    weekPeople.add(event.userId);
+    weekRegistered.add(event.userId);
+    if (!day._activityTimes.has(event.userId)) day._activityTimes.set(event.userId, []);
+    day._activityTimes.get(event.userId).push(event.at);
+  }
+
+  for (const day of days) {
+    for (const [userId, times] of day._activityTimes) {
+      if (day._presenceUserIds.has(userId)) continue;
+      day.visits += 1;
+      day.dwellSeconds += estimatedDwell(times);
+    }
+    day.people = day._people.size;
+    delete day._people;
+    delete day._presenceUserIds;
+    delete day._activityTimes;
+  }
+
+  const dwellSeconds = days.reduce((sum, day) => sum + day.dwellSeconds, 0);
+  const visits = days.reduce((sum, day) => sum + day.visits, 0);
+  const opinions = store.listOpinions();
+  const board = {
+    users: store.countUsers(),
+    posts: opinions.length,
+    comments: store.countComments(),
+    votes: store.countVotesAll(),
+    notices: 0,
+    shares: 0,
+    open: 0,
+    done: 0,
+  };
+  for (const item of opinions) {
+    const kind = kindOf(item);
+    if (kind === "notice") board.notices += 1;
+    else if (kind === "share") board.shares += 1;
+    else if (statusOf(item) === "done") board.done += 1;
+    else board.open += 1;
+  }
+
+  return {
+    timezone: "Asia/Seoul",
+    source: "store+presence",
+    range: { start: days[0].key, end: days[days.length - 1].key },
+    onlinePeople: online.size,
+    week: {
+      people: weekPeople.size,
+      registered: weekRegistered.size,
+      guests: Math.max(0, weekPeople.size - weekRegistered.size),
+      visits,
+      dwellSeconds,
+      avgDwellSeconds: weekPeople.size ? Math.round(dwellSeconds / weekPeople.size) : 0,
+      avgVisitSeconds: visits ? Math.round(dwellSeconds / visits) : 0,
+    },
+    days,
+    board,
+  };
+}
+
 async function importGoogleRespondents() {
   let payload = { responses: [] };
   try {
@@ -398,6 +580,30 @@ app.get("/api/me", requireUser, (req, res) => {
     role: isAdmin(req.email) ? "admin" : "user",
     isAdmin: isAdmin(req.email),
   });
+});
+
+app.post("/api/presence", async (req, res) => {
+  const sessionId = sanitizeId(req.body?.sessionId);
+  const visitorId = sanitizeId(req.body?.visitorId);
+  if (!sessionId || !visitorId) {
+    res.status(400).json({ error: "접속 정보를 확인할 수 없습니다." });
+    return;
+  }
+  const session = verifyToken(readToken(req));
+  await store.touchVisit({
+    sessionId,
+    visitorId,
+    userId: session?.userId || "",
+  });
+  res.json({ ok: true });
+});
+
+app.get("/api/admin/dashboard", requireUser, (req, res) => {
+  if (!isAdmin(req.email)) {
+    res.status(403).json({ error: "관리자만 볼 수 있습니다." });
+    return;
+  }
+  res.json(buildAdminDashboard());
 });
 
 async function applyTranslations(opinion) {
